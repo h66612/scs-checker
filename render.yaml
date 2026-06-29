@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: scs-checker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: sh -c "python -c 'from web_app import init_db; init_db()' && gunicorn web_app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 300"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.6"
+      - key: FLASK_DEBUG
+        value: "false"
+    disk:
+      name: scs-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

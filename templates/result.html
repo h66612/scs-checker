@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}检测结果 - {{ project_name }} - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4" id="resultPage">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-file-earmark-check"></i> 检测结果</h2>
+      <p class="text-muted mb-0" id="resultMeta">加载中...</p>
+    </div>
+    <div class="btn-group">
+      <a href="/dashboard" class="btn btn-outline-info"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+      <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house"></i> 首页</a>
+    </div>
+  </div>
+
+  <!-- Summary Cards + Risk Gauge -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-2">
+      <div class="card summary-card border-info">
+        <div class="card-body text-center">
+          <i class="bi bi-box-seam text-info mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="totalPackages">-</h3>
+          <p class="text-muted mb-0">总依赖包数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card summary-card border-danger">
+        <div class="card-body text-center">
+          <i class="bi bi-bug text-danger mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="vulnPackages">-</h3>
+          <p class="text-muted mb-0">存在漏洞的包</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card summary-card border-warning">
+        <div class="card-body text-center">
+          <i class="bi bi-exclamation-triangle text-warning mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="totalVulns">-</h3>
+          <p class="text-muted mb-0">漏洞总数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card summary-card border-success">
+        <div class="card-body text-center">
+          <i class="bi bi-check-circle text-success mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="safePackages">-</h3>
+          <p class="text-muted mb-0">安全包数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card summary-card" id="riskCard">
+        <div class="card-body">
+          <div class="risk-gauge-container" id="riskGaugeContainer">
+            <svg class="risk-gauge-svg" viewBox="0 0 200 120" id="riskGaugeSvg">
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#30363d" stroke-width="12" stroke-linecap="round"/>
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#58a6ff" stroke-width="12" stroke-linecap="round"
+                    stroke-dasharray="251" stroke-dashoffset="251" id="riskGaugeArc"
+                    style="transition: stroke-dashoffset 1s ease, stroke 0.5s ease;"/>
+            </svg>
+            <div class="risk-gauge-value">
+              <div class="score" id="riskScore">-</div>
+              <div class="label" id="riskLevel">风险评分</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Severity Stacked Bar -->
+  <div class="card dashboard-card mb-4">
+    <div class="card-header"><i class="bi bi-bar-chart-steps"></i> 漏洞严重性分布</div>
+    <div class="card-body">
+      <div class="severity-bar-container mb-3" id="severityBar"></div>
+      <div class="row text-center g-2">
+        <div class="col"><span class="badge sev-critical">严重 <span id="sevCritical">0</span></span></div>
+        <div class="col"><span class="badge sev-high">高危 <span id="sevHigh">0</span></span></div>
+        <div class="col"><span class="badge sev-medium">中危 <span id="sevMedium">0</span></span></div>
+        <div class="col"><span class="badge sev-low">低危 <span id="sevLow">0</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-pie-chart"></i> 严重性占比</div>
+        <div class="card-body">
+          <canvas id="severityChart" style="max-height:260px"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-bar-chart"></i> 各包漏洞 Top 10</div>
+        <div class="card-body">
+          <canvas id="packageChart" style="max-height:260px"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-shield-exclamation"></i> CWE 漏洞类型分布</div>
+        <div class="card-body">
+          <canvas id="cweChart" style="max-height:260px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fix Suggestions -->
+  <div class="card dashboard-card mb-4" id="fixSuggestionsCard" style="display:none">
+    <div class="card-header"><i class="bi bi-wrench-adjustable"></i> 修复建议</div>
+    <div class="card-body" id="fixSuggestionsBody">
+    </div>
+  </div>
+
+  <!-- Vulnerability Table -->
+  <div class="card dashboard-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-table"></i> 漏洞详情列表</span>
+      <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="severityFilter" style="width:auto">
+          <option value="all">全部级别</option>
+          <option value="critical">严重</option>
+          <option value="high">高危</option>
+          <option value="medium">中危</option>
+          <option value="low">低危</option>
+        </select>
+        <input type="text" class="form-control form-control-sm" id="tableSearch"
+               placeholder="搜索包名/漏洞ID..." style="width:200px">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0" id="vulnTable">
+          <thead>
+            <tr>
+              <th>包名</th>
+              <th>版本</th>
+              <th>漏洞ID</th>
+              <th>严重性</th>
+              <th>CVSS</th>
+              <th>漏洞摘要</th>
+              <th>修复版本</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="vulnTableBody">
+            <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dependency Tree & Export -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <div class="card dashboard-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-diagram-2"></i> 依赖关系树</span>
+          <input type="text" class="form-control form-control-sm" id="treeSearch"
+                 placeholder="搜索包名..." style="width:180px">
+        </div>
+        <div class="card-body" style="max-height:400px; overflow-y:auto">
+          <div id="depTreeContainer" class="dep-tree">
+            <p class="text-muted text-center">加载中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-download"></i> 导出报告</div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-info" onclick="exportData('json')">
+              <i class="bi bi-file-code"></i> 导出 JSON 数据
+            </button>
+            <button class="btn btn-outline-success" onclick="exportData('sbom')">
+              <i class="bi bi-file-earmark-code"></i> 导出 CycloneDX SBOM
+            </button>
+            <button class="btn btn-outline-warning" onclick="exportData('svg')">
+              <i class="bi bi-diagram-2"></i> 导出 SVG 依赖图
+            </button>
+            <button class="btn btn-outline-secondary" onclick="exportData('requirements')">
+              <i class="bi bi-file-earmark-text"></i> 导出 requirements.txt
+            </button>
+          </div>
+          <hr class="my-3">
+          <div class="text-center">
+            <small class="text-muted">扫描ID: <span id="scanIdDisplay">{{ scan_id }}</span></small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Vulnerability Detail Modal -->
+<div class="modal fade" id="vulnDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="vulnDetailTitle">漏洞详情</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="vulnDetailBody">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Package Detail Modal -->
+<div class="modal fade" id="pkgDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pkgDetailTitle">包详情</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="pkgDetailBody">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SCAN_ID = {{ scan_id }};
+</script>
+<script src="/static/js/result.js?v=5.2"></script>
+{% endblock %}

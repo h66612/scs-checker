@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}扫描对比分析 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-arrow-left-right"></i> 扫描对比分析</h2>
+      <p class="text-muted mb-0">对比两次扫描结果，分析漏洞的新增、修复与未变化情况</p>
+    </div>
+    <a href="/history" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> 返回记录</a>
+  </div>
+
+  <!-- Selector Card -->
+  <div class="card dashboard-card mb-4">
+    <div class="card-header"><i class="bi bi-git"></i> 选择对比扫描</div>
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label text-muted mb-1"><i class="bi bi-1-circle"></i> 扫描一 (基准)</label>
+          <select class="form-select" id="scan1Select">
+            <option value="">-- 请选择扫描记录 --</option>
+            {% for s in scans_list %}
+            <option value="{{ s.id }}">#{{ s.id }} - {{ s.name }} ({{ s.time }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label text-muted mb-1"><i class="bi bi-2-circle"></i> 扫描二 (对比)</label>
+          <select class="form-select" id="scan2Select">
+            <option value="">-- 请选择扫描记录 --</option>
+            {% for s in scans_list %}
+            <option value="{{ s.id }}">#{{ s.id }} - {{ s.name }} ({{ s.time }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button class="btn btn-info btn-scan" id="btnCompare" type="button">
+            <i class="bi bi-arrow-left-right"></i> 开始对比
+          </button>
+        </div>
+      </div>
+      {% if not scans_list %}
+      <div class="alert alert-warning mt-3 mb-0">
+        <i class="bi bi-exclamation-triangle"></i> 暂无可对比的扫描记录，请先完成至少两次安全检测。
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="emptyState" class="card dashboard-card">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-arrow-left-right" style="font-size: 3.5rem; color: var(--text-muted)"></i>
+      <h4 class="mt-3 mb-1" style="color: var(--text-muted)">尚未进行对比</h4>
+      <p class="text-muted mb-0">请在上方选择两次扫描记录，然后点击「开始对比」查看差异分析报告</p>
+    </div>
+  </div>
+
+  <!-- Results container (hidden until comparison done) -->
+  <div id="compareResults" style="display:none">
+
+    <!-- Scan info banner -->
+    <div class="card dashboard-card mb-4" id="scanInfoBanner">
+      <div class="card-body py-2">
+        <div class="row align-items-center text-center">
+          <div class="col">
+            <small class="text-muted d-block">扫描一 (基准)</small>
+            <span id="scan1Info" class="fw-bold"></span>
+          </div>
+          <div class="col-auto">
+            <i class="bi bi-arrow-left-right" style="font-size:1.5rem;color:var(--accent-info)"></i>
+          </div>
+          <div class="col">
+            <small class="text-muted d-block">扫描二 (对比)</small>
+            <span id="scan2Info" class="fw-bold"></span>
+          </div>
+          <div class="col-auto border-start" style="border-color: var(--border-color) !important">
+            <button class="btn btn-sm btn-outline-info" id="btnShareLink" title="复制当前对比链接">
+              <i class="bi bi-share"></i> 分享链接
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary cards row -->
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-3 mb-4">
+      <div class="col">
+        <div class="card summary-card border-success">
+          <div class="card-body text-center">
+            <i class="bi bi-plus-circle text-success mb-1" style="font-size:1.5rem"></i>
+            <h3 class="mb-0 text-success" id="sumNewVulns">0</h3>
+            <p class="text-muted mb-0">新增漏洞</p>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card summary-card border-success">
+          <div class="card-body text-center">
+            <i class="bi bi-check-circle text-success mb-1" style="font-size:1.5rem"></i>
+            <h3 class="mb-0 text-success" id="sumFixedVulns">0</h3>
+            <p class="text-muted mb-0">已修复漏洞</p>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card summary-card">
+          <div class="card-body text-center">
+            <i class="bi bi-dash-circle text-muted mb-1" style="font-size:1.5rem"></i>
+            <h3 class="mb-0" id="sumUnchanged" style="color:var(--text-muted)">0</h3>
+            <p class="text-muted mb-0">未变化</p>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card summary-card border-info">
+          <div class="card-body text-center">
+            <i class="bi bi-box-seam text-info mb-1" style="font-size:1.5rem"></i>
+            <h3 class="mb-0 text-info" id="sumNewPkgs">0</h3>
+            <p class="text-muted mb-0">新增包</p>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card summary-card border-warning">
+          <div class="card-body text-center">
+            <i class="bi bi-box-seam text-warning mb-1" style="font-size:1.5rem"></i>
+            <h3 class="mb-0 text-warning" id="sumRemovedPkgs">0</h3>
+            <p class="text-muted mb-0">移除包</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side-by-side comparison overview + severity chart -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-5">
+        <div class="card dashboard-card h-100">
+          <div class="card-header"><i class="bi bi-grid-3x3-gap"></i> 扫描对比概览</div>
+          <div class="card-body">
+            <table class="table table-dark table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>指标</th>
+                  <th class="text-center">扫描一</th>
+                  <th class="text-center">扫描二</th>
+                  <th class="text-center">变化</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>风险评分</td>
+                  <td class="text-center" id="cmpRisk1">-</td>
+                  <td class="text-center" id="cmpRisk2">-</td>
+                  <td class="text-center" id="cmpRiskDelta">-</td>
+                </tr>
+                <tr>
+                  <td>总漏洞数</td>
+                  <td class="text-center" id="cmpVulns1">-</td>
+                  <td class="text-center" id="cmpVulns2">-</td>
+                  <td class="text-center" id="cmpVulnsDelta">-</td>
+                </tr>
+                <tr>
+                  <td>总包数</td>
+                  <td class="text-center" id="cmpPkgs1">-</td>
+                  <td class="text-center" id="cmpPkgs2">-</td>
+                  <td class="text-center" id="cmpPkgsDelta">-</td>
+                </tr>
+                <tr>
+                  <td><span class="badge sev-critical">严重</span></td>
+                  <td class="text-center" id="cmpCrit1">-</td>
+                  <td class="text-center" id="cmpCrit2">-</td>
+                  <td class="text-center" id="cmpCritDelta">-</td>
+                </tr>
+                <tr>
+                  <td><span class="badge sev-high">高危</span></td>
+                  <td class="text-center" id="cmpHigh1">-</td>
+                  <td class="text-center" id="cmpHigh2">-</td>
+                  <td class="text-center" id="cmpHighDelta">-</td>
+                </tr>
+                <tr>
+                  <td><span class="badge sev-medium">中危</span></td>
+                  <td class="text-center" id="cmpMed1">-</td>
+                  <td class="text-center" id="cmpMed2">-</td>
+                  <td class="text-center" id="cmpMedDelta">-</td>
+                </tr>
+                <tr>
+                  <td><span class="badge sev-low">低危</span></td>
+                  <td class="text-center" id="cmpLow1">-</td>
+                  <td class="text-center" id="cmpLow2">-</td>
+                  <td class="text-center" id="cmpLowDelta">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="card dashboard-card h-100">
+          <div class="card-header"><i class="bi bi-bar-chart"></i> 严重性分布对比</div>
+          <div class="card-body">
+            <canvas id="severityCompareChart" style="max-height:330px"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New vulnerabilities table (red accent) -->
+    <div class="card dashboard-card mb-4" style="box-shadow: inset 4px 0 0 var(--accent-danger)">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-exclamation-circle text-danger"></i> 新增漏洞 <span class="badge bg-danger ms-1" id="newVulnsBadge">0</span></span>
+        <input type="text" class="form-control form-control-sm" id="newVulnsSearch" placeholder="搜索包名/漏洞ID..." style="width:220px">
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0">
+            <thead>
+              <tr>
+                <th style="width:25%">包名</th>
+                <th style="width:20%">版本变化</th>
+                <th>新增漏洞 ID</th>
+                <th class="text-center" style="width:80px">数量</th>
+              </tr>
+            </thead>
+            <tbody id="newVulnsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fixed vulnerabilities table (green accent) -->
+    <div class="card dashboard-card mb-4" style="box-shadow: inset 4px 0 0 var(--accent-success)">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-check-circle text-success"></i> 已修复漏洞 <span class="badge bg-success ms-1" id="fixedVulnsBadge">0</span></span>
+        <input type="text" class="form-control form-control-sm" id="fixedVulnsSearch" placeholder="搜索包名/漏洞ID..." style="width:220px">
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0">
+            <thead>
+              <tr>
+                <th style="width:25%">包名</th>
+                <th style="width:20%">版本变化</th>
+                <th>已修复漏洞 ID</th>
+                <th class="text-center" style="width:80px">数量</th>
+              </tr>
+            </thead>
+            <tbody id="fixedVulnsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unchanged table (gray accent) -->
+    <div class="card dashboard-card mb-4" style="box-shadow: inset 4px 0 0 var(--text-muted)">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-dash-circle text-muted"></i> 未变化 <span class="badge bg-secondary ms-1" id="unchangedBadge">0</span></span>
+        <input type="text" class="form-control form-control-sm" id="unchangedSearch" placeholder="搜索包名..." style="width:220px">
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0">
+            <thead>
+              <tr>
+                <th style="width:30%">包名</th>
+                <th style="width:25%">版本 (扫描一)</th>
+                <th style="width:25%">版本 (扫描二)</th>
+                <th class="text-center" style="width:120px">未变漏洞数</th>
+              </tr>
+            </thead>
+            <tbody id="unchangedBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- New packages & Removed packages -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="card dashboard-card h-100" style="box-shadow: inset 4px 0 0 var(--accent-info)">
+          <div class="card-header"><i class="bi bi-box-seam text-info"></i> 新增依赖包 <span class="badge bg-info ms-1" id="newPkgsBadge">0</span></div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>包名</th>
+                    <th>版本</th>
+                    <th class="text-center">漏洞数</th>
+                  </tr>
+                </thead>
+                <tbody id="newPkgsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card dashboard-card h-100" style="box-shadow: inset 4px 0 0 var(--accent-warning)">
+          <div class="card-header"><i class="bi bi-box-seam text-warning"></i> 移除依赖包 <span class="badge bg-warning ms-1" id="removedPkgsBadge">0</span></div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>包名</th>
+                    <th>版本</th>
+                    <th class="text-center">漏洞数</th>
+                  </tr>
+                </thead>
+                <tbody id="removedPkgsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index: 1090"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/compare.js?v=5.2"></script>
+{% endblock %}

@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}高级分析 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4" id="analyticsPage">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-graph-up-arrow"></i> 高级分析</h2>
+      <p class="text-muted mb-0">漏洞趋势分析、合规检查与依赖溯源</p>
+    </div>
+    <div class="btn-group">
+      <a href="/dashboard" class="btn btn-outline-info"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+      <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house"></i> 首页</a>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="card dashboard-card">
+    <div class="card-header p-0">
+      <ul class="nav nav-tabs card-header-tabs" id="analyticsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-trend" type="button">
+            <i class="bi bi-graph-up"></i> 漏洞趋势分析
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-compliance" type="button">
+            <i class="bi bi-clipboard-check"></i> 合规检查
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-provenance" type="button">
+            <i class="bi bi-diagram-3"></i> 依赖溯源
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body">
+      <div class="tab-content" id="analyticsTabContent">
+
+        <!-- ===== Tab 1: Vulnerability Trend Analysis ===== -->
+        <div class="tab-pane fade show active" id="tab-trend" role="tabpanel">
+
+          <!-- Stat Summary Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="trendTotalScans">0</div>
+                <div class="stat-label">总扫描次数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-danger">
+                <div class="stat-number" id="trendTotalVulns">0</div>
+                <div class="stat-label">漏洞总数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-warning">
+                <div class="stat-number" id="trendAvgRisk">0</div>
+                <div class="stat-label">平均风险评分</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-success">
+                <div class="stat-number" id="trendRiskTrend">-</div>
+                <div class="stat-label">风险趋势</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trend Charts -->
+          <div class="row g-3 mb-4">
+            <div class="col-lg-7">
+              <div class="card dashboard-card h-100">
+                <div class="card-header"><i class="bi bi-graph-up-arrow"></i> 风险评分 & 漏洞数量趋势</div>
+                <div class="card-body">
+                  <canvas id="trendLineChart" style="max-height:320px"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-5">
+              <div class="card dashboard-card h-100">
+                <div class="card-header"><i class="bi bi-bar-chart-steps"></i> 严重性分布堆叠图</div>
+                <div class="card-body">
+                  <canvas id="trendStackedChart" style="max-height:320px"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Summary -->
+          <div class="card dashboard-card">
+            <div class="card-header"><i class="bi bi-clipboard-data"></i> 统计摘要</div>
+            <div class="card-body">
+              <div class="sys-info-grid" id="trendStatsGrid">
+                <div class="sys-info-item">
+                  <span class="sys-label">最高风险评分</span>
+                  <span class="sys-value" id="trendMaxRisk">-</span>
+                </div>
+                <div class="sys-info-item">
+                  <span class="sys-label">最低风险评分</span>
+                  <span class="sys-value" id="trendMinRisk">-</span>
+                </div>
+                <div class="sys-info-item">
+                  <span class="sys-label">严重漏洞总数</span>
+                  <span class="sys-value" id="trendCriticalCount">-</span>
+                </div>
+                <div class="sys-info-item">
+                  <span class="sys-label">高危漏洞总数</span>
+                  <span class="sys-value" id="trendHighCount">-</span>
+                </div>
+                <div class="sys-info-item">
+                  <span class="sys-label">扫描包总数</span>
+                  <span class="sys-value" id="trendPkgCount">-</span>
+                </div>
+                <div class="sys-info-item">
+                  <span class="sys-label">最近扫描时间</span>
+                  <span class="sys-value" id="trendLastScan">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===== Tab 2: Compliance Check ===== -->
+        <div class="tab-pane fade" id="tab-compliance" role="tabpanel">
+
+          <!-- Compliance Selectors -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label text-muted"><i class="bi bi-bookmark-check"></i> 选择合规标准</label>
+              <select class="form-select" id="complianceStandard">
+                <option value="owasp">OWASP Top 10</option>
+                <option value="nist">NIST SSDF</option>
+                <option value="iso27001">ISO 27001</option>
+              </select>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label text-muted"><i class="bi bi-clipboard-check"></i> 选择扫描记录</label>
+              <select class="form-select" id="complianceScanSelect">
+                <option value="">-- 请选择扫描 --</option>
+              </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <button class="btn btn-info w-100" onclick="runComplianceCheck()">
+                <i class="bi bi-play-circle"></i> 执行检查
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Cards -->
+          <div class="row g-3 mb-4" id="complianceStatusCards">
+            <div class="col-md-4">
+              <div class="stat-box glow-success">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="stat-number text-success" id="compliancePass">0</div>
+                    <div class="stat-label">PASS</div>
+                  </div>
+                  <i class="bi bi-check-circle-fill text-success" style="font-size:2rem"></i>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-box glow-warning">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="stat-number text-warning" id="complianceWarn">0</div>
+                    <div class="stat-label">WARN</div>
+                  </div>
+                  <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size:2rem"></i>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-box glow-danger">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="stat-number text-danger" id="complianceFail">0</div>
+                    <div class="stat-label">FAIL</div>
+                  </div>
+                  <i class="bi bi-x-circle-fill text-danger" style="font-size:2rem"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed Check Items -->
+          <div class="card dashboard-card">
+            <div class="card-header"><i class="bi bi-list-check"></i> 详细检查项</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0" id="complianceDetailTable">
+                  <thead>
+                    <tr>
+                      <th style="width:50px">#</th>
+                      <th>检查项</th>
+                      <th>标准要求</th>
+                      <th>实际状态</th>
+                      <th style="width:100px">结果</th>
+                      <th>说明</th>
+                    </tr>
+                  </thead>
+                  <tbody id="complianceDetailBody">
+                    <tr><td colspan="6" class="text-center text-muted py-4">请选择标准并执行检查</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===== Tab 3: Dependency Provenance ===== -->
+        <div class="tab-pane fade" id="tab-provenance" role="tabpanel">
+
+          <!-- Scan Selector -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-8">
+              <label class="form-label text-muted"><i class="bi bi-clipboard-check"></i> 选择扫描记录</label>
+              <select class="form-select" id="provenanceScanSelect">
+                <option value="">-- 请选择扫描 --</option>
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-info w-100" onclick="loadProvenanceData()">
+                <i class="bi bi-search"></i> 查询依赖
+              </button>
+            </div>
+          </div>
+
+          <!-- Stat Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="provTotalPackages">0</div>
+                <div class="stat-label">总包数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-success">
+                <div class="stat-number" id="provDirectDeps">0</div>
+                <div class="stat-label">直接依赖</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-warning">
+                <div class="stat-number" id="provTransitiveDeps">0</div>
+                <div class="stat-label">传递依赖</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-danger">
+                <div class="stat-number" id="provVulnPackages">0</div>
+                <div class="stat-label">漏洞包数</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dependency Tree Display -->
+          <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-diagram-2"></i> 依赖树展示</span>
+              <input type="text" class="form-control form-control-sm" id="provTreeSearch"
+                     placeholder="搜索包名..." style="width:180px">
+            </div>
+            <div class="card-body" style="max-height:500px; overflow-y:auto">
+              <div id="provenanceTreeContainer" class="dep-tree">
+                <div class="empty-state">
+                  <i class="bi bi-diagram-3"></i>
+                  <p>请选择扫描记录后查询依赖关系</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/analytics.js?v=5.2"></script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}检测记录 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-clock-history"></i> 检测历史记录</h2>
+      <p class="text-muted mb-0">查看所有历史扫描记录，包含时间、漏洞等级、风险评分等信息</p>
+    </div>
+    <a href="/" class="btn btn-info"><i class="bi bi-plus-circle"></i> 新建检测</a>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card summary-card border-info">
+        <div class="card-body text-center">
+          <i class="bi bi-search text-info mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="histStatScans">0</h3>
+          <p class="text-muted mb-0">总检测次数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card summary-card border-primary">
+        <div class="card-body text-center">
+          <i class="bi bi-box-seam text-primary mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="histStatPackages">0</h3>
+          <p class="text-muted mb-0">总扫描包数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card summary-card border-warning">
+        <div class="card-body text-center">
+          <i class="bi bi-bug text-warning mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="histStatVulns">0</h3>
+          <p class="text-muted mb-0">发现漏洞总数</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card summary-card border-danger">
+        <div class="card-body text-center">
+          <i class="bi bi-exclamation-octagon text-danger mb-1" style="font-size:1.5rem"></i>
+          <h3 class="mb-0" id="histStatCritical">0</h3>
+          <p class="text-muted mb-0">严重漏洞</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-5">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-pie-chart"></i> 全部检测漏洞严重性汇总</div>
+        <div class="card-body">
+          <canvas id="histSeverityChart" style="max-height:280px"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card dashboard-card">
+        <div class="card-header"><i class="bi bi-graph-up"></i> 风险评分趋势</div>
+        <div class="card-body">
+          <canvas id="histTrendChart" style="max-height:280px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Table -->
+  <div class="card dashboard-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-list-ul"></i> 历史检测记录</span>
+      <input type="text" class="form-control form-control-sm" id="historySearch"
+             placeholder="搜索项目名..." style="width:200px">
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0" id="historyTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>项目名称</th>
+              <th>检测时间</th>
+              <th>总包数</th>
+              <th>漏洞包数</th>
+              <th>漏洞总数</th>
+              <th>严重</th>
+              <th>高危</th>
+              <th>中危</th>
+              <th>低危</th>
+              <th>风险评分</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="12" class="text-center text-muted py-4">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">确认删除</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除这条检测记录吗？此操作不可恢复。</p>
+        <p class="text-muted">扫描ID: <span id="deleteScanId"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDelete">确认删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/history.js?v=5.2"></script>
+{% endblock %}

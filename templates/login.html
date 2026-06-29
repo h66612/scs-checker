@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'register' %}注册{% else %}登录{% endif %} - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid" id="loginPage">
+  <div class="row justify-content-center align-items-center" style="min-height: calc(100vh - 130px);">
+    <div class="col-md-6 col-lg-5 col-xl-4">
+
+      <!-- Logo & Title -->
+      <div class="text-center mb-4 fade-in">
+        <i class="bi bi-shield-lock-fill hero-shield"></i>
+        <h2 class="mt-2 mb-0 glow-text-blue">SCS Checker</h2>
+        <p class="text-muted">软件供应链安全检测平台</p>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="card neon-card">
+        <div class="card-body p-4">
+
+          {% if mode == 'register' %}
+          <!-- ===== Register Form ===== -->
+          <h4 class="card-title text-center mb-3"><i class="bi bi-person-plus"></i> 用户注册</h4>
+
+          <form id="registerForm" class="fade-in">
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-person"></i> 用户名</label>
+              <input type="text" class="form-control" id="regUsername" name="username"
+                     placeholder="请输入用户名" required minlength="3">
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-envelope"></i> 邮箱</label>
+              <input type="email" class="form-control" id="regEmail" name="email"
+                     placeholder="name@example.com" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-lock"></i> 密码</label>
+              <input type="password" class="form-control" id="regPassword" name="password"
+                     placeholder="请输入密码" required minlength="6">
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-lock-fill"></i> 确认密码</label>
+              <input type="password" class="form-control" id="regPasswordConfirm" name="password_confirm"
+                     placeholder="请再次输入密码" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-info w-100 btn-scan-pulse" id="registerBtn">
+              <i class="bi bi-person-plus-fill"></i> 注册
+            </button>
+          </form>
+
+          <div class="text-center mt-3">
+            <small class="text-muted">已有账号？</small>
+            <a href="/login" class="text-info text-decoration-none fw-semibold">返回登录</a>
+          </div>
+
+          {% else %}
+          <!-- ===== Login Form ===== -->
+          <h4 class="card-title text-center mb-3"><i class="bi bi-box-arrow-in-right"></i> 用户登录</h4>
+
+          <form id="loginForm" class="fade-in">
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-person"></i> 用户名</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
+                <input type="text" class="form-control" id="loginUsername" name="username"
+                       placeholder="请输入用户名" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted"><i class="bi bi-lock"></i> 密码</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                <input type="password" class="form-control" id="loginPassword" name="password"
+                       placeholder="请输入密码" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-info w-100 btn-scan-pulse" id="loginBtn">
+              <i class="bi bi-box-arrow-in-right"></i> 登录
+            </button>
+          </form>
+
+          <div class="text-center mt-3">
+            <small class="text-muted">还没有账号？</small>
+            <a href="/login?mode=register" class="text-info text-decoration-none fw-semibold">立即注册</a>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Default Admin Hint -->
+      <div class="alert alert-info mt-3 fade-in" role="alert">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle-fill"></i>
+          <div>
+            <strong>默认管理员账号：</strong> <code>admin</code> / <code>admin123</code>
+            <br>
+            <small class="text-muted">首次使用请尽快修改默认密码</small>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/auth.js?v=5.2"></script>
+{% endblock %}

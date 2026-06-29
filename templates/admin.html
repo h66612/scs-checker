@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}管理后台 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4" id="adminPage">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-gear"></i> 管理后台</h2>
+      <p class="text-muted mb-0">用户管理与系统审计日志</p>
+    </div>
+    <div class="btn-group">
+      <a href="/dashboard" class="btn btn-outline-info"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+      <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house"></i> 首页</a>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="card dashboard-card">
+    <div class="card-header p-0">
+      <ul class="nav nav-tabs card-header-tabs" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-users" type="button">
+            <i class="bi bi-people"></i> 用户管理
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-audit" type="button">
+            <i class="bi bi-journal-text"></i> 审计日志
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body">
+      <div class="tab-content" id="adminTabContent">
+
+        <!-- ===== Tab 1: User Management ===== -->
+        <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
+
+          <!-- User stats -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="adminTotalUsers">0</div>
+                <div class="stat-label">用户总数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-success">
+                <div class="stat-number" id="adminActiveUsers">0</div>
+                <div class="stat-label">活跃用户</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-warning">
+                <div class="stat-number" id="adminAdminCount">0</div>
+                <div class="stat-label">管理员数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-box glow-danger">
+                <div class="stat-number" id="adminDisabledUsers">0</div>
+                <div class="stat-label">已停用用户</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Users Table -->
+          <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-people-fill"></i> 用户列表</span>
+              <input type="text" class="form-control form-control-sm" id="userSearch"
+                     placeholder="搜索用户名/邮箱..." style="width:220px">
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0" id="usersTable">
+                  <thead>
+                    <tr>
+                      <th style="width:50px">#</th>
+                      <th>用户名</th>
+                      <th>邮箱</th>
+                      <th>角色</th>
+                      <th>创建时间</th>
+                      <th>最后登录</th>
+                      <th>状态</th>
+                      <th style="width:180px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTableBody">
+                    <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===== Tab 2: Audit Log ===== -->
+        <div class="tab-pane fade" id="tab-audit" role="tabpanel">
+
+          <!-- Audit Stats -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="auditTotalLogs">0</div>
+                <div class="stat-label">日志总数</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-box glow-warning">
+                <div class="stat-number" id="auditTodayLogs">0</div>
+                <div class="stat-label">今日日志</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-box glow-danger">
+                <div class="stat-number" id="auditHighRiskOps">0</div>
+                <div class="stat-label">高风险操作</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audit Log Table with Search -->
+          <div class="card dashboard-card">
+            <div class="card-header">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <span><i class="bi bi-journal-text"></i> 审计日志</span>
+                </div>
+                <div class="col-auto">
+                  <select class="form-select form-select-sm" id="auditActionFilter" style="width:auto">
+                    <option value="">全部操作</option>
+                    <option value="login">登录</option>
+                    <option value="scan">扫描</option>
+                    <option value="export">导出</option>
+                    <option value="config">配置变更</option>
+                    <option value="delete">删除</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <input type="text" class="form-control form-control-sm" id="auditSearch"
+                         placeholder="搜索用户/操作/目标..." style="width:220px">
+                </div>
+                <div class="col-auto">
+                  <button class="btn btn-sm btn-outline-info" onclick="loadAuditLogs()">
+                    <i class="bi bi-search"></i> 查询
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0" id="auditLogTable">
+                  <thead>
+                    <tr>
+                      <th style="width:50px">#</th>
+                      <th>时间</th>
+                      <th>用户</th>
+                      <th>操作</th>
+                      <th>目标</th>
+                      <th>详情</th>
+                      <th>IP地址</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditLogTableBody">
+                    <tr><td colspan="7" class="text-center text-muted py-4">加载中...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin.js?v=5.2"></script>
+{% endblock %}

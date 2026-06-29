@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% block title %}SCS Checker - 供应链安全检测平台{% endblock %}
+{% block content %}
+<!-- Scan Line Overlay -->
+<div class="scan-line-overlay"></div>
+
+<!-- Security Threat Ticker -->
+<div class="security-ticker" id="securityTicker">
+  <div class="ticker-track" id="tickerTrack">
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2024-3094</span><span class="ticker-desc">XZ Utils 后门漏洞 — 供应链投毒</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2021-44228</span><span class="ticker-desc">Log4Shell — Apache Log4j 远程代码执行</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">CVE-2023-44487</span><span class="ticker-desc">HTTP/2 Rapid Reset DDoS 攻击</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2014-0160</span><span class="ticker-desc">Heartbleed — OpenSSL 内存泄露</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">GHSA-xg73-94fp-g449</span><span class="ticker-desc">Jinja2 沙箱逃逸漏洞</span></span>
+    <span class="ticker-item"><span class="ticker-sev med">MEDIUM</span><span class="ticker-id">CVE-2022-40897</span><span class="ticker-desc">Python setuptools ReDoS 漏洞</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2017-5638</span><span class="ticker-desc">Apache Struts 远程代码执行</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">CVE-2019-1003030</span><span class="ticker-desc">Jenkins 安全沙箱绕过</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2024-3094</span><span class="ticker-desc">XZ Utils 后门漏洞 — 供应链投毒</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2021-44228</span><span class="ticker-desc">Log4Shell — Apache Log4j 远程代码执行</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">CVE-2023-44487</span><span class="ticker-desc">HTTP/2 Rapid Reset DDoS 攻击</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2014-0160</span><span class="ticker-desc">Heartbleed — OpenSSL 内存泄露</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">GHSA-xg73-94fp-g449</span><span class="ticker-desc">Jinja2 沙箱逃逸漏洞</span></span>
+    <span class="ticker-item"><span class="ticker-sev med">MEDIUM</span><span class="ticker-id">CVE-2022-40897</span><span class="ticker-desc">Python setuptools ReDoS 漏洞</span></span>
+    <span class="ticker-item"><span class="ticker-sev crit">CRITICAL</span><span class="ticker-id">CVE-2017-5638</span><span class="ticker-desc">Apache Struts 远程代码执行</span></span>
+    <span class="ticker-item"><span class="ticker-sev high">HIGH</span><span class="ticker-id">CVE-2019-1003030</span><span class="ticker-desc">Jenkins 安全沙箱绕过</span></span>
+  </div>
+</div>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Hero Section -->
+  <div class="hero-section text-center py-5 mb-4">
+    <div class="hero-shield mb-3"><i class="bi bi-shield-lock-fill"></i></div>
+    <h1 class="display-5 fw-bold mb-2" id="heroTitle" style="color:var(--text-bright)">
+      开源软件供应链安全检测平台
+    </h1>
+    <p class="lead mb-3" style="color:var(--text-muted)">
+      <span class="status-dot"></span>系统在线 &middot;
+      支持 <span class="glow-text-blue fw-bold">32</span> 种文件格式 &middot;
+      覆盖 <span class="glow-text-purple fw-bold">14</span> 个生态系统 &middot;
+      实时 OSV.dev 漏洞库 &middot; CVSS 评分 &middot; SBOM 导出
+    </p>
+    <div class="hero-badges d-flex flex-wrap justify-content-center">
+      <span class="badge bg-info-subtle text-info-emphasis px-3 py-2 me-1 mb-1">Python</span>
+      <span class="badge bg-success-subtle text-success-emphasis px-3 py-2 me-1 mb-1">Node.js</span>
+      <span class="badge bg-danger-subtle text-danger-emphasis px-3 py-2 me-1 mb-1">Java/Kotlin</span>
+      <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 me-1 mb-1">Go</span>
+      <span class="badge bg-primary-subtle text-primary-emphasis px-3 py-2 me-1 mb-1">Rust</span>
+      <span class="badge bg-secondary-subtle text-secondary-emphasis px-3 py-2 me-1 mb-1">PHP</span>
+      <span class="badge" style="background:rgba(188,140,255,.15);color:#bc8cff" >Ruby</span>
+      <span class="badge bg-info-subtle text-info-emphasis px-3 py-2 me-1 mb-1">C#/.NET</span>
+      <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 me-1 mb-1">Dart</span>
+      <span class="badge bg-danger-subtle text-danger-emphasis px-3 py-2 me-1 mb-1">APK/JAR</span>
+      <span class="badge bg-success-subtle text-success-emphasis px-3 py-2 me-1 mb-1">Docker</span>
+      <span class="badge bg-primary-subtle text-primary-emphasis px-3 py-2 me-1 mb-1">SBOM</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left: Input -->
+    <div class="col-lg-8">
+
+      <!-- Input Mode Tabs -->
+      <div class="card dashboard-card neon-card">
+        <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs mb-0" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabText" type="button">
+                <i class="bi bi-file-earmark-text"></i> 文件内容
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabUpload" type="button">
+                <i class="bi bi-cloud-upload"></i> 上传文件
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabManual" type="button">
+                <i class="bi bi-pencil-square"></i> 手动输入
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabQuick" type="button">
+                <i class="bi bi-lightning-charge"></i> 快速查询
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body">
+          <div class="tab-content">
+
+            <!-- Tab 1: Text Input -->
+            <div class="tab-pane fade show active" id="tabText">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">粘贴任意依赖文件内容，系统自动识别格式</small>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-info" id="btnSampleVuln" title="加载含漏洞的示例"><i class="bi bi-exclamation-triangle"></i> 漏洞示例</button>
+                  <button class="btn btn-outline-success" id="btnSampleSafe" title="加载安全版本示例"><i class="bi bi-check-circle"></i> 安全示例</button>
+                  <button class="btn btn-outline-warning" id="btnSamplePkg" title="加载 package.json 示例"><i class="bi bi-braces"></i> npm 示例</button>
+                  <button class="btn btn-outline-secondary" id="btnClear"><i class="bi bi-eraser"></i></button>
+                </div>
+              </div>
+              <textarea class="form-control requirements-input" id="reqInput"
+                placeholder="# 粘贴 requirements.txt / package.json / pom.xml / go.mod / Cargo.toml 等内容&#10;# 系统会自动识别文件格式并解析依赖&#10;flask==2.0.1&#10;requests==2.25.1&#10;django==3.2.0" rows="12"></textarea>
+              <div class="mt-2 d-flex justify-content-between align-items-center">
+                <div class="input-group input-group-sm" style="max-width:300px">
+                  <span class="input-group-text bg-dark-2">格式</span>
+                  <select class="form-select form-select-sm" id="formatSelect">
+                    <option value="">自动检测</option>
+                  </select>
+                </div>
+                <small class="text-muted" id="detectedFormat"></small>
+              </div>
+            </div>
+
+            <!-- Tab 2: File Upload -->
+            <div class="tab-pane fade" id="tabUpload">
+              <div class="upload-zone text-center py-5" id="uploadZone">
+                <i class="bi bi-cloud-arrow-up" style="font-size:3rem;color:var(--accent-info)"></i>
+                <h5 class="mt-3 mb-2">拖拽文件到此处，或点击选择</h5>
+                <p class="text-muted mb-3">支持 requirements.txt, package.json, pom.xml, go.mod, Cargo.toml, Pipfile, Dockerfile, APK, JAR 等 25+ 种格式</p>
+                <input type="file" id="fileInput" class="d-none"
+                  accept=".txt,.in,.toml,.lock,.py,.cfg,.yml,.yaml,.json,.xml,.gradle,.kts,.csproj,.swift,.cabal,.apk,.jar,.war,.whl">
+                <button class="btn btn-outline-info" onclick="document.getElementById('fileInput').click()">
+                  <i class="bi bi-folder2-open"></i> 选择文件
+                </button>
+              </div>
+              <div class="mt-3 d-none" id="uploadInfo">
+                <div class="alert alert-info mb-0 py-2">
+                  <i class="bi bi-file-earmark-check"></i>
+                  <strong id="uploadFileName"></strong>
+                  <span class="text-muted ms-2" id="uploadFileSize"></span>
+                  <span class="badge bg-info ms-2" id="uploadFormat"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Manual Input -->
+            <div class="tab-pane fade" id="tabManual">
+              <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> 手动输入包名和版本号，逐行添加</p>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control" id="manualPkgName" placeholder="包名 (如 flask, express, django)">
+                <input type="text" class="form-control" id="manualPkgVersion" placeholder="版本 (如 2.0.1)" style="max-width:150px">
+                <select class="form-select" id="manualEcosystem" style="max-width:130px">
+                  <option value="PyPI">PyPI</option>
+                  <option value="npm">npm</option>
+                  <option value="Maven">Maven</option>
+                  <option value="RubyGems">RubyGems</option>
+                  <option value="Go">Go</option>
+                  <option value="crates.io">crates.io</option>
+                  <option value="NuGet">NuGet</option>
+                </select>
+                <button class="btn btn-outline-info" id="btnAddPkg"><i class="bi bi-plus-lg"></i></button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-dark table-sm mb-0" id="manualTable">
+                  <thead><tr><th>包名</th><th>版本</th><th>生态</th><th style="width:50px"></th></tr></thead>
+                  <tbody id="manualTableBody">
+                    <tr class="text-muted"><td colspan="4" class="text-center py-3">暂无包，请在上方添加</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="mt-2 text-end">
+                <button class="btn btn-sm btn-outline-secondary" id="btnClearManual"><i class="bi bi-trash"></i> 清空</button>
+              </div>
+            </div>
+
+            <!-- Tab 4: Quick Check -->
+            <div class="tab-pane fade" id="tabQuick">
+              <p class="text-muted mb-3"><i class="bi bi-lightning-charge"></i> 快速查询单个包的已知漏洞</p>
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-dark-2"><i class="bi bi-box-seam"></i></span>
+                <input type="text" class="form-control" id="quickPkgName" placeholder="包名 (如 flask, requests, django)">
+                <input type="text" class="form-control" id="quickPkgVersion" placeholder="版本 (可选)" style="max-width:150px">
+                <button class="btn btn-info" id="btnQuickCheck"><i class="bi bi-search"></i> 查询</button>
+              </div>
+              <div id="quickResult" class="d-none">
+                <div class="card dashboard-card">
+                  <div class="card-body py-3">
+                    <div id="quickResultContent"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Name & Scan Button -->
+      <div class="row mt-3 g-2">
+        <div class="col-md-8">
+          <div class="input-group">
+            <span class="input-group-text bg-dark-2"><i class="bi bi-tag"></i></span>
+            <input type="text" class="form-control" id="projectName" placeholder="项目名称（可选）">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <button class="btn btn-info w-100 btn-scan btn-scan-pulse" id="btnScan">
+            <i class="bi bi-shield-check"></i> 开始安全检测
+          </button>
+        </div>
+      </div>
+
+      <!-- Supported Formats Accordion -->
+      <div class="card dashboard-card mt-3">
+        <div class="card-header" data-bs-toggle="collapse" data-bs-target="#formatsCollapse" style="cursor:pointer">
+          <i class="bi bi-grid-3x3-gap"></i> 支持的 25+ 种文件格式 <i class="bi bi-chevron-down float-end"></i>
+        </div>
+        <div class="collapse" id="formatsCollapse">
+          <div class="card-body py-3">
+            <div class="row g-3" id="formatsGrid">
+              <div class="col-12 text-center text-muted">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Info Cards -->
+    <div class="col-lg-4">
+      <!-- Quick Stats -->
+      <div class="card dashboard-card mb-3 neon-card" id="statsCard">
+        <div class="card-header"><i class="bi bi-bar-chart-fill"></i> 平台统计</div>
+        <div class="card-body">
+          <div class="row text-center g-3" id="quickStats">
+            <div class="col-6">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="statScans" data-count="0">0</div>
+                <div class="stat-label">总检测次数</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat-box glow-info">
+                <div class="stat-number" id="statPackages" data-count="0">0</div>
+                <div class="stat-label">总扫描包数</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat-box glow-warning">
+                <div class="stat-number text-warning" id="statVulns" data-count="0">0</div>
+                <div class="stat-label">发现漏洞总数</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stat-box glow-danger">
+                <div class="stat-number text-danger" id="statCritical" data-count="0">0</div>
+                <div class="stat-label">严重漏洞</div>
+              </div>
+            </div>
+          </div>
+          <!-- Threat Level Indicator -->
+          <div class="mt-3 pt-2" style="border-top: 1px solid var(--glass-border)">
+            <div class="d-flex justify-content-between align-items-center">
+              <small class="text-muted" style="font-weight:600;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px">威胁等级</small>
+              <small class="text-muted" id="threatLabel" style="font-size:0.75rem">待检测</small>
+            </div>
+            <div class="threat-meter" id="threatMeter">
+              <div class="threat-dot"></div><div class="threat-dot"></div><div class="threat-dot"></div>
+              <div class="threat-dot"></div><div class="threat-dot"></div><div class="threat-dot"></div>
+              <div class="threat-dot"></div><div class="threat-dot"></div><div class="threat-dot"></div>
+              <div class="threat-dot"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature List -->
+      <div class="card dashboard-card mb-3">
+        <div class="card-header"><i class="bi bi-stars"></i> 功能特性</div>
+        <div class="card-body p-3">
+          <ul class="feature-list">
+            <li><i class="bi bi-diagram-3-fill text-info"></i> 25+ 格式自动识别与解析</li>
+            <li><i class="bi bi-bug-fill text-danger"></i> OSV.dev 漏洞实时查询</li>
+            <li><i class="bi bi-speedometer2 text-warning"></i> CVSS v3 评分与风险仪表</li>
+            <li><i class="bi bi-graph-up text-success"></i> 交互式可视化图表</li>
+            <li><i class="bi bi-arrow-left-right text-primary"></i> 扫描对比差异分析</li>
+            <li><i class="bi bi-clock-history text-secondary"></i> 检测历史记录</li>
+            <li><i class="bi bi-file-earmark-code text-info"></i> CycloneDX SBOM 导出</li>
+            <li><i class="bi bi-diagram-2 text-warning"></i> SVG 依赖关系图</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- System Info Panel -->
+      <div class="card dashboard-card mb-3 neon-card">
+        <div class="card-header"><i class="bi bi-cpu"></i> 系统状态</div>
+        <div class="card-body p-3">
+          <div class="sys-info-grid">
+            <div class="sys-info-item">
+              <i class="bi bi-server text-info"></i>
+              <div>
+                <div class="sys-label">API 状态</div>
+                <div class="sys-value"><span class="status-dot"></span>在线</div>
+              </div>
+            </div>
+            <div class="sys-info-item">
+              <i class="bi bi-database text-success"></i>
+              <div>
+                <div class="sys-label">漏洞库</div>
+                <div class="sys-value">OSV.dev</div>
+              </div>
+            </div>
+            <div class="sys-info-item">
+              <i class="bi bi-shield-check text-warning"></i>
+              <div>
+                <div class="sys-label">引擎版本</div>
+                <div class="sys-value">v4.1</div>
+              </div>
+            </div>
+            <div class="sys-info-item">
+              <i class="bi bi-clock text-info"></i>
+              <div>
+                <div class="sys-label">最后更新</div>
+                <div class="sys-value" id="lastUpdateTime">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan Progress Modal -->
+  <div class="modal fade" id="scanModal" data-bs-backdrop="true" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-hourglass-split"></i> 扫描进行中</h5>
+          <button type="button" class="btn-close btn-close-white" onclick="var m=document.getElementById('scanModal');try{bootstrap.Modal.getInstance(m).hide();}catch(e){}m.classList.remove('show');m.style.display='none';document.querySelectorAll('.modal-backdrop').forEach(function(el){el.remove();});document.body.classList.remove('modal-open');document.body.style.overflow='';document.body.style.paddingRight='';"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <div class="scan-spinner" id="scanSpinner">
+            <div class="radar-container">
+              <div class="radar-ring"></div>
+              <div class="radar-ring"></div>
+              <div class="radar-ring"></div>
+              <div class="radar-sweep"></div>
+              <div class="radar-dot" style="top:25%;left:60%"></div>
+              <div class="radar-dot" style="top:65%;left:35%"></div>
+              <div class="radar-dot" style="top:40%;left:75%"></div>
+            </div>
+          </div>
+          <div class="scan-success-icon d-none" id="scanSuccessIcon">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+          </div>
+          <div class="scan-error-icon d-none" id="scanErrorIcon">
+            <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
+          </div>
+          <h5 class="mt-3" id="scanMessage">正在初始化扫描...</h5>
+          <div class="progress mt-3" style="height: 8px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                 id="scanProgressBar" style="width: 0%"></div>
+          </div>
+          <div class="scan-log mt-3 text-start" id="scanLog"></div>
+          <div class="mt-3 d-none" id="scanResultButtons">
+            <a href="#" class="btn btn-info me-2" id="btnViewResult">
+              <i class="bi bi-bar-chart-line"></i> 查看检测结果
+            </a>
+            <button type="button" class="btn btn-secondary" onclick="var m=document.getElementById('scanModal');try{bootstrap.Modal.getInstance(m).hide();}catch(e){}m.classList.remove('show');m.style.display='none';document.querySelectorAll('.modal-backdrop').forEach(function(el){el.remove();});document.body.classList.remove('modal-open');document.body.style.overflow='';document.body.style.paddingRight='';">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}错误 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid" id="errorPage">
+  <div class="row justify-content-center align-items-center" style="min-height: calc(100vh - 130px);">
+    <div class="col-md-6 col-lg-5 text-center">
+
+      <!-- Large Error Icon -->
+      <div class="fade-in">
+        <i class="bi bi-exclamation-triangle-fill" style="font-size:6rem; color:var(--accent-danger); filter:drop-shadow(0 0 30px rgba(239,68,68,0.5));"></i>
+      </div>
+
+      <!-- Error Title -->
+      <h2 class="mt-3 glow-text text-danger" style="color:var(--accent-danger);">发生错误</h2>
+
+      <!-- Error Message -->
+      <div class="card neon-card mt-4 mb-4">
+        <div class="card-body p-4">
+          <p class="mb-0" style="font-size:1.1rem;">
+            <i class="bi bi-info-circle text-info"></i>
+            {{ message }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex gap-2 justify-content-center">
+        <a href="/" class="btn btn-info btn-scan-pulse">
+          <i class="bi bi-house-door"></i> 返回首页
+        </a>
+        <button class="btn btn-outline-secondary" onclick="history.back()">
+          <i class="bi bi-arrow-left"></i> 返回上一页
+        </button>
+      </div>
+
+      <!-- Support Hint -->
+      <div class="mt-4">
+        <small class="text-muted">
+          <i class="bi bi-life-preserver"></i>
+          如问题持续存在，请联系系统管理员
+        </small>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

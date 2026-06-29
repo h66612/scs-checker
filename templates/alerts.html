@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}风险告警中心 - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4" id="alertsPage">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-bell"></i> 风险告警中心</h2>
+      <p class="text-muted mb-0">管理告警规则、接收风险通知、跟踪安全态势变化</p>
+    </div>
+    <div class="btn-group">
+      <a href="/dashboard" class="btn btn-outline-info"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+      <a href="/" class="btn btn-outline-secondary"><i class="bi bi-house"></i> 首页</a>
+    </div>
+  </div>
+
+  <!-- ===== Top: Alert Rules Management ===== -->
+  <div class="card dashboard-card mb-4">
+    <div class="card-header"><i class="bi bi-sliders"></i> 告警规则管理</div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <!-- Create New Rule Form -->
+        <div class="col-lg-4">
+          <h6 class="text-muted mb-3"><i class="bi bi-plus-circle"></i> 创建新规则</h6>
+          <form id="alertRuleForm" class="fade-in">
+            <div class="mb-3">
+              <label class="form-label text-muted">规则名称</label>
+              <input type="text" class="form-control" id="ruleName" placeholder="例如：高危漏洞告警" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted">严重性阈值</label>
+              <select class="form-select" id="ruleSeverity">
+                <option value="critical">严重 (Critical)</option>
+                <option value="high" selected>高危 (High)</option>
+                <option value="medium">中危 (Medium)</option>
+                <option value="low">低危 (Low)</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted">漏洞数量阈值</label>
+              <input type="number" class="form-control" id="ruleVulnCount" value="5" min="1">
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-muted">风险评分阈值</label>
+              <input type="number" class="form-control" id="ruleRiskScore" value="70" min="0" max="100">
+            </div>
+            <button type="submit" class="btn btn-info w-100">
+              <i class="bi bi-plus-circle"></i> 创建规则
+            </button>
+          </form>
+        </div>
+
+        <!-- Rules List -->
+        <div class="col-lg-8">
+          <h6 class="text-muted mb-3"><i class="bi bi-list-ul"></i> 已有规则</h6>
+          <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="alertRulesTable">
+              <thead>
+                <tr>
+                  <th style="width:50px">#</th>
+                  <th>规则名称</th>
+                  <th>严重性阈值</th>
+                  <th>漏洞数阈值</th>
+                  <th>风险评分阈值</th>
+                  <th>创建时间</th>
+                  <th style="width:80px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="alertRulesBody">
+                <tr><td colspan="7" class="text-center text-muted py-4">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Middle: Notification Center ===== -->
+  <div class="card dashboard-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-bell-fill"></i> 通知中心</span>
+      <button class="btn btn-sm btn-outline-success" onclick="markAllNotificationsRead()">
+        <i class="bi bi-check2-all"></i> 全部标记已读
+      </button>
+    </div>
+    <div class="card-body" id="notificationList" style="max-height:500px; overflow-y:auto">
+      <div class="empty-state">
+        <i class="bi bi-bell-slash"></i>
+        <p>加载通知中...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Bottom: Unread Count ===== -->
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="stat-box glow-info">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="stat-number" id="unreadCount">0</div>
+            <div class="stat-label">未读通知</div>
+          </div>
+          <i class="bi bi-envelope-fill" style="font-size:2rem; color:var(--accent-info)"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-box glow-warning">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="stat-number" id="totalNotifications">0</div>
+            <div class="stat-label">通知总数</div>
+          </div>
+          <i class="bi bi-bell-fill" style="font-size:2rem; color:var(--accent-warning)"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-box glow-danger">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="stat-number" id="criticalAlerts">0</div>
+            <div class="stat-label">严重告警</div>
+          </div>
+          <i class="bi bi-exclamation-triangle-fill" style="font-size:2rem; color:var(--accent-danger)"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/alerts.js?v=5.2"></script>
+{% endblock %}

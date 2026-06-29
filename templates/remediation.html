@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}漏洞修复 - {{ project_name }} - SCS Checker{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4" id="remediationPage">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-wrench-adjustable"></i> 漏洞修复</h2>
+      <p class="text-muted mb-0">
+        项目：<strong class="text-info">{{ project_name }}</strong>
+        &nbsp;|&nbsp;
+        风险评分：<strong id="remRiskScore" class="risk-medium">-</strong>
+        &nbsp;|&nbsp;
+        扫描ID：<span class="text-muted">{{ scan_id }}</span>
+      </p>
+    </div>
+    <div class="btn-group">
+      <a href="/result/{{ scan_id }}" class="btn btn-outline-info"><i class="bi bi-file-earmark-check"></i> 检测结果</a>
+      <a href="/dashboard" class="btn btn-outline-secondary"><i class="bi bi-house"></i> 仪表盘</a>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stat-box glow-info">
+        <div class="stat-number" id="remStatTotal">0</div>
+        <div class="stat-label">修复建议总数</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box glow-danger">
+        <div class="stat-number" id="remStatCritical">0</div>
+        <div class="stat-label">严重/高危修复项</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box glow-warning">
+        <div class="stat-number" id="remStatVulns">0</div>
+        <div class="stat-label">涉及漏洞数</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box glow-success">
+        <div class="stat-number" id="remStatWhitelisted">0</div>
+        <div class="stat-label">白名单项</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout: Left (suggestions) + Right (export) -->
+  <div class="row g-3">
+
+    <!-- Left: Fix Suggestions List -->
+    <div class="col-lg-8">
+      <div class="card dashboard-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-list-check"></i> 修复建议列表</span>
+          <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" id="remSevFilter" style="width:auto">
+              <option value="all">全部级别</option>
+              <option value="critical">严重</option>
+              <option value="high">高危</option>
+              <option value="medium">中危</option>
+              <option value="low">低危</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" id="remSearch"
+                   placeholder="搜索包名..." style="width:160px">
+          </div>
+        </div>
+        <div class="card-body" id="remSuggestionList" style="max-height:600px; overflow-y:auto">
+          <div class="empty-state">
+            <i class="bi bi-hourglass-split"></i>
+            <p>加载修复建议中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Export Panel -->
+    <div class="col-lg-4">
+      <div class="card dashboard-card h-100">
+        <div class="card-header"><i class="bi bi-download"></i> 导出操作面板</div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+
+            <button class="btn btn-outline-info" onclick="remediationDownloadScript()">
+              <i class="bi bi-terminal"></i> 下载批量修复脚本 (.sh)
+            </button>
+            <button class="btn btn-outline-success" onclick="remediationDownloadRequirements()">
+              <i class="bi bi-file-earmark-text"></i> 下载修复后的 requirements.txt
+            </button>
+
+            <hr class="my-3">
+
+            <button class="btn btn-outline-warning" onclick="remediationExportExcel()">
+              <i class="bi bi-file-earmark-spreadsheet"></i> 导出 Excel 报告
+            </button>
+            <button class="btn btn-outline-info" onclick="remediationExportWord()">
+              <i class="bi bi-file-earmark-word"></i> 导出 Word 报告
+            </button>
+            <button class="btn btn-outline-danger" onclick="remediationExportPDF()">
+              <i class="bi bi-file-earmark-pdf"></i> 导出 PDF 报告
+            </button>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="text-center">
+            <small class="text-muted">
+              <i class="bi bi-info-circle"></i> 报告包含修复建议、漏洞详情及风险评分
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom: Whitelist Management -->
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card dashboard-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-shield-check"></i> 白名单管理</span>
+          <button class="btn btn-sm btn-outline-success" onclick="remediationAddWhitelist()">
+            <i class="bi bi-plus-circle"></i> 添加白名单
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="whitelistTable">
+              <thead>
+                <tr>
+                  <th style="width:50px">#</th>
+                  <th>包名</th>
+                  <th>版本</th>
+                  <th>原因</th>
+                  <th>添加时间</th>
+                  <th style="width:80px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="whitelistTableBody">
+                <tr><td colspan="6" class="text-center text-muted py-4">暂无白名单项</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Add Whitelist Modal -->
+<div class="modal fade" id="whitelistModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 添加白名单</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label text-muted">包名</label>
+          <input type="text" class="form-control" id="wlPkgName" placeholder="例如：requests">
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted">版本</label>
+          <input type="text" class="form-control" id="wlPkgVersion" placeholder="例如：2.28.0">
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted">原因</label>
+          <textarea class="form-control" id="wlReason" rows="2" placeholder="说明加入白名单的原因..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-info" onclick="remediationSaveWhitelist()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SCAN_ID = {{ scan_id }};
+const PROJECT_NAME = "{{ project_name }}";
+</script>
+<script src="/static/js/remediation.js?v=5.2"></script>
+{% endblock %}
