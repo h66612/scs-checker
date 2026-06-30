@@ -279,7 +279,7 @@ function renderFixSuggestions(data) {
                 '<div class="version-change mt-1">' +
                     '<span class="text-danger">v' + escapeHtml(s.version) + '</span>' +
                     '<span class="arrow">→</span>' +
-                    '<span class="text-success">v' + escapeHtml(targetVer) + '</span>' +
+                    '<span class="text-success">v' + escapeHtml(formatFixVersionDisplay(targetVer)) + '</span>' +
                 '</div>' +
             '</div>' +
             '<button class="btn btn-sm btn-outline-info ms-2" onclick="showPackageDetail(\'' + escapeHtml(s.name) + '\')">' +
@@ -298,6 +298,7 @@ function renderTable(data) {
             for (const vuln of pkg.vulnerabilities) {
                 allVulns.push({
                     package: pkg.package, version: pkg.version,
+                    ecosystem: pkg.ecosystem || 'PyPI',
                     id: vuln.id || 'N/A', severity: vuln.severity || 'unknown',
                     cvss: vuln.cvss_score || '-', summary: vuln.summary || '',
                     fixed_version: getFixVersions(vuln),
@@ -329,7 +330,7 @@ function filterTable() {
 
     const tbody = document.getElementById('vulnTableBody');
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-check-circle"></i> 没有匹配的漏洞记录</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-check-circle"></i> 没有匹配的漏洞记录</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map(function(v) {
@@ -341,11 +342,12 @@ function filterTable() {
         return '<tr class="fade-in">' +
             '<td><a href="javascript:void(0)" onclick="showPackageDetail(\'' + escapeHtml(v.package) + '\')" class="text-info"><strong>' + escapeHtml(v.package) + '</strong></a></td>' +
             '<td>' + escapeHtml(v.version) + '</td>' +
+            '<td>' + escapeHtml(v.ecosystem) + '</td>' +
             '<td><code>' + escapeHtml(v.id) + '</code></td>' +
             '<td><span class="badge ' + sevClass + '">' + sevText + '</span>' + exploitedBadge + '</td>' +
             '<td>' + cvssText + '</td>' +
             '<td style="max-width:300px">' + escapeHtml(summaryShort) + '</td>' +
-            '<td>' + escapeHtml(Array.isArray(v.fixed_version) ? v.fixed_version.join(', ') : v.fixed_version) + '</td>' +
+            '<td>' + escapeHtml(Array.isArray(v.fixed_version) ? v.fixed_version.map(formatFixVersionDisplay).join(', ') : formatFixVersionDisplay(v.fixed_version)) + '</td>' +
             '<td><button class="btn btn-sm btn-outline-info" onclick="showVulnDetail(' + allVulns.indexOf(v) + ')"><i class="bi bi-eye"></i></button></td>' +
             '</tr>';
     }).join('');
@@ -366,7 +368,7 @@ function showVulnDetail(idx) {
     html += '</div></div>';
     html += '<div class="vuln-detail-row"><div class="vuln-detail-label">CVSS评分</div><div class="vuln-detail-value">' + (typeof v.cvss === 'number' ? v.cvss.toFixed(1) : v.cvss) + '</div></div>';
     html += '<div class="vuln-detail-row"><div class="vuln-detail-label">受影响范围</div><div class="vuln-detail-value">' + escapeHtml(v.affected || '-') + '</div></div>';
-    html += '<div class="vuln-detail-row"><div class="vuln-detail-label">修复版本</div><div class="vuln-detail-value">' + escapeHtml(Array.isArray(v.fixed_version) ? v.fixed_version.join(', ') : v.fixed_version) + '</div></div>';
+    html += '<div class="vuln-detail-row"><div class="vuln-detail-label">修复版本</div><div class="vuln-detail-value">' + escapeHtml(Array.isArray(v.fixed_version) ? v.fixed_version.map(formatFixVersionDisplay).join(', ') : formatFixVersionDisplay(v.fixed_version)) + '</div></div>';
     if (v.cwe && v.cwe.length > 0) {
         html += '<div class="vuln-detail-row"><div class="vuln-detail-label">CWE分类</div><div class="vuln-detail-value">' + v.cwe.map(function(c) { return '<code>' + escapeHtml(c) + '</code>'; }).join(' ') + '</div></div>';
     }
@@ -387,7 +389,10 @@ function showVulnDetail(idx) {
 // === Package Detail Modal (NEW) ===
 function showPackageDetail(name) {
     fetch('/api/package/' + encodeURIComponent(name))
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(data => {
             let html = '<div class="pkg-detail-section"><h6><i class="bi bi-box-seam"></i> ' + escapeHtml(data.name) + '</h6>';
             html += '<p class="text-muted mb-0">在 ' + data.total_scans + ' 次扫描中出现，共发现 ' + data.total_vulns + ' 个漏洞</p></div>';
@@ -451,6 +456,7 @@ function renderDepTree(data) {
 
 function renderTreeNode(node, depth) {
     if (!node || !node.name) return '';
+    if (depth > 50) return '<div class="dep-node text-muted">... (max depth reached)</div>';
     const pkgData = scanData.packages ? scanData.packages.find(function(p) { return p.package === node.name; }) : null;
     const vulnCount = pkgData ? pkgData.vuln_count : (node.vuln_count || 0);
     const sevClass = pkgData ? getWorstSeverity(pkgData) : 'none';
@@ -502,8 +508,23 @@ function filterTree() {
 
 // === Export ===
 function exportData(format) {
-    window.location.href = '/api/export/' + SCAN_ID + '/' + format;
-    showToast('info', '导出', '正在下载 ' + format.toUpperCase() + ' 文件...');
+    fetch('/api/export/' + SCAN_ID + '/' + format)
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.blob();
+        })
+        .then(blob => {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = format + '_export';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('success', '导出成功', format.toUpperCase() + ' 文件已下载');
+        })
+        .catch(err => showToast('error', '导出失败', err.message));
 }
 
 // === Utilities ===
@@ -520,6 +541,13 @@ function getFixVersions(vuln) {
         if (fixes.length > 0) return fixes;
     }
     return ['-'];
+}
+
+function formatFixVersionDisplay(ver) {
+    if (!ver || ver === '-') return '-';
+    if (/^[0-9a-f]{40}$/i.test(ver)) return 'commit:' + ver.substring(0, 7);
+    if (ver.length > 30) return ver.substring(0, 27) + '...';
+    return ver;
 }
 
 function getWorstSeverity(pkg) {

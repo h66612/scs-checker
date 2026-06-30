@@ -9,6 +9,26 @@ import zipfile
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional, Tuple
 
+
+def _clean_version(ver_str):
+    """Extract a clean semantic version from a version constraint string.
+
+    Preserves pre-release (-alpha) and build metadata (+build) per SemVer spec.
+    Strips constraint operators (>=, <=, ==, ~=, ^, >, <) and whitespace.
+    """
+    if not ver_str:
+        return ''
+    # Strip constraint operators and whitespace
+    ver_str = ver_str.strip().lstrip('>=<~^=! ')
+    # Match semver pattern: X.Y.Z[-prerelease][+build]
+    m = re.match(r'(\d+\.\d+(?:\.\d+)?(?:[-+][\w.]+)?)', ver_str)
+    if m:
+        return m.group(1)
+    # Fallback: just digits and dots
+    m = re.match(r'(\d+\.\d+(?:\.\d+)?)', ver_str)
+    return m.group(1) if m else ''
+
+
 # =============================================================================
 # Registry
 # =============================================================================
@@ -104,6 +124,8 @@ def detect_format(filename, content=''):
             return 'gemfile_lock'
         if '# yarn' in content or content.strip().startswith('#'):
             return 'yarn_lock'
+        if '[[package]]' in content and ('name = "' in content or "name = '" in content):
+            return 'cargo_lock'
         return 'pipfile_lock'  # default for .lock
     elif ext == '.yaml' or ext == '.yml':
         if content and 'services:' in content and ('image:' in content or 'build:' in content):
@@ -248,8 +270,6 @@ def _parse_pyproject_toml(content, filename=''):
     dep_section = False
     for line in content.splitlines():
         line = line.strip()
-        if line == 'dependencies' and '=' in content.split('\n')[content.split('\n').index(line.rstrip()) if line.rstrip() in content.split('\n') else 0] if False else False:
-            pass
         # Simple TOML parsing for dependencies
         if re.match(r'dependencies\s*=\s*\[', line):
             dep_section = True
@@ -403,7 +423,7 @@ def _parse_package_json(content, filename=''):
         data = json.loads(content)
         for section in ('dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'):
             for name, ver in data.get(section, {}).items():
-                clean_ver = re.sub(r'[^0-9.]', '', ver)
+                clean_ver = _clean_version(ver)
                 packages.append({'package': name, 'version': clean_ver, 'ecosystem': 'npm'})
     except:
         pass
@@ -421,7 +441,7 @@ def _parse_package_lock(content, filename=''):
         for path, info in pkgs.items():
             if not path or path == '':
                 continue
-            name = info.get('name', '') or path.split('node_modules/')[-1] if 'node_modules/' in path else path
+            name = info.get('name', '') or (path.split('node_modules/')[-1] if 'node_modules/' in path else path)
             version = info.get('version', '')
             if name:
                 packages.append({'package': name, 'version': version, 'ecosystem': 'npm'})
@@ -463,15 +483,15 @@ def _parse_pnpm_lock(content, filename=''):
         if stripped.startswith('packages:'):
             in_packages = True
             continue
-        if in_packages and stripped.startswith('  ') and '/' in stripped:
-            m = re.match(r'\s*/?([^/:\s]+)[@/]([^:\s]+):', stripped)
+        if in_packages and line.startswith('  ') and '/' in stripped:
+            m = re.match(r'\s*/?([^/:\s]+)[@/]([^:\s]+):', line)
             if not m:
-                m = re.match(r'\s+/?([^/]+)[@/]([^:]+):', stripped)
+                m = re.match(r'\s+/?([^/]+)[@/]([^:]+):', line)
             if m:
                 name = m.group(1).strip("'\"")
                 version = m.group(2).strip("'\"")
                 packages.append({'package': name, 'version': version, 'ecosystem': 'npm'})
-        if in_packages and not stripped.startswith(' ') and stripped and not stripped.startswith('#'):
+        if in_packages and not line.startswith(' ') and stripped and not stripped.startswith('#'):
             in_packages = False
     return packages
 
@@ -544,7 +564,7 @@ def _parse_composer_json(content, filename=''):
             for name, ver in data.get(section, {}).items():
                 if name == 'php' or name.startswith('ext-'):
                     continue
-                clean_ver = re.sub(r'[^0-9.]', '', ver)
+                clean_ver = _clean_version(ver)
                 packages.append({'package': name, 'version': clean_ver, 'ecosystem': 'Packagist'})
     except:
         pass
@@ -585,7 +605,7 @@ def _parse_gemfile(content, filename=''):
         if m:
             name = m.group(1)
             version = m.group(2) or ''
-            clean_ver = re.sub(r'[^0-9.]', '', version)
+            clean_ver = _clean_version(version)
             packages.append({'package': name, 'version': clean_ver, 'ecosystem': 'RubyGems'})
     return packages
 
@@ -667,7 +687,7 @@ def _parse_cargo_toml(content, filename=''):
                     version = vm.group(1)
                 else:
                     version = ver_part.strip('"').strip("'")
-                version = re.sub(r'[^0-9.]', '', version)
+                version = _clean_version(version)
                 packages.append({'package': name, 'version': version, 'ecosystem': 'crates.io'})
     return packages
 
@@ -763,7 +783,7 @@ def _parse_pubspec_yaml(content, filename=''):
                 ver_part = m.group(2).strip()
                 version = ''
                 if ver_part and ver_part != '^' and not ver_part.startswith('{'):
-                    version = re.sub(r'[^0-9.]', '', ver_part)
+                    version = _clean_version(ver_part)
                 packages.append({'package': name, 'version': version, 'ecosystem': 'Pub'})
     return packages
 

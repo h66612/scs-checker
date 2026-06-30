@@ -8,9 +8,14 @@ import hmac
 import os
 import secrets
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import session, request, jsonify, redirect, url_for, render_template
+
+
+def _now_beijing():
+    """Return current Beijing time (UTC+8)."""
+    return datetime.utcnow() + timedelta(hours=8)
 
 
 def hash_password(password, salt=None):
@@ -79,7 +84,7 @@ def log_audit(conn, user_id, username, action, target='', details=''):
         conn.execute(
             '''INSERT INTO audit_logs (user_id, username, action, target, details, ip_address, timestamp)
                VALUES (?, ?, ?, ?, ?, ?, ?)''',
-            (user_id, username, action, target, details, ip, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            (user_id, username, action, target, details, ip, _now_beijing().strftime('%Y-%m-%d %H:%M:%S'))
         )
         conn.commit()
     except:
@@ -115,10 +120,22 @@ def init_auth_tables(conn):
     # Create default admin if no users exist
     row = conn.execute('SELECT COUNT(*) as cnt FROM users').fetchone()
     if row['cnt'] == 0:
-        admin_hash = hash_password('admin123')
+        default_pw = os.environ.get('ADMIN_PASSWORD')
+        if not default_pw:
+            default_pw = secrets.token_urlsafe(12)
+            print("=" * 55)
+            print("  [SECURITY] Generated random admin password:")
+            print(f"  Username: admin")
+            print(f"  Password: {default_pw}")
+            print("  [SECURITY] Set ADMIN_PASSWORD env var to override.")
+            print("  [SECURITY] Change this password after first login!")
+            print("=" * 55)
+        else:
+            print("  [SECURITY] Admin password loaded from ADMIN_PASSWORD env var")
+        admin_hash = hash_password(default_pw)
         conn.execute(
             '''INSERT INTO users (username, password_hash, email, role, created_at)
                VALUES (?, ?, ?, 'admin', ?)''',
-            ('admin', admin_hash, 'admin@scs-checker.local', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            ('admin', admin_hash, 'admin@scs-checker.local', _now_beijing().strftime('%Y-%m-%d %H:%M:%S'))
         )
         conn.commit()

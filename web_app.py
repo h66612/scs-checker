@@ -34,7 +34,7 @@ from flask import Flask, render_template, request, jsonify, send_file, redirect,
 app = Flask(__name__,
             template_folder=os.path.join(PROJECT_DIR, 'templates'),
             static_folder=os.path.join(PROJECT_DIR, 'static'))
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'scs-checker-secret-2026')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24)
 
 # Import extension modules
 from modules.auth import (
@@ -58,6 +58,46 @@ DB_PATH = os.path.join(DATA_DIR, 'scans.db')
 
 # Progress tracking for active scans
 scan_progress = {}  # task_id -> {status, phase, progress, message, error, scan_id}
+
+
+def _save_progress(task_id, data):
+    """Persist scan progress to database."""
+    try:
+        conn = get_db()
+        conn.execute('''
+            INSERT OR REPLACE INTO scan_progress
+            (task_id, status, phase, progress, message, error, scan_id, project_name, start_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (task_id, data.get('status', 'running'), data.get('phase', 0),
+              data.get('progress', 0), data.get('message', ''), data.get('error'),
+              data.get('scan_id'), data.get('project_name', ''),
+              data.get('start_time', now_beijing().strftime('%Y-%m-%d %H:%M:%S'))))
+        conn.commit()
+        conn.close()
+    except:
+        pass
+
+
+def _load_progress(task_id):
+    """Load scan progress from database."""
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT * FROM scan_progress WHERE task_id = ?', (task_id,)).fetchone()
+        conn.close()
+        if row:
+            return {
+                'status': row['status'],
+                'phase': row['phase'],
+                'progress': row['progress'],
+                'message': row['message'],
+                'error': row['error'],
+                'scan_id': row['scan_id'],
+                'project_name': row['project_name'],
+                'start_time': row['start_time'],
+            }
+    except:
+        pass
+    return None
 
 
 def get_db():
@@ -85,9 +125,30 @@ def init_db():
             risk_score INTEGER DEFAULT 0,
             requirements_content TEXT,
             scan_data TEXT,
-            status TEXT DEFAULT 'completed'
+            status TEXT DEFAULT 'completed',
+            task_id TEXT
         )
     ''')
+    # Migration: add task_id column if it doesn't exist (for existing databases)
+    columns = [c[1] for c in conn.execute('PRAGMA table_info(scans)').fetchall()]
+    if 'task_id' not in columns:
+        conn.execute('ALTER TABLE scans ADD COLUMN task_id TEXT')
+    # Scan progress table for persistent progress tracking
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS scan_progress (
+            task_id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            phase INTEGER DEFAULT 0,
+            progress INTEGER DEFAULT 0,
+            message TEXT DEFAULT '',
+            error TEXT,
+            scan_id INTEGER,
+            project_name TEXT,
+            start_time TEXT
+        )
+    ''')
+    # Mark any in-progress scans as error on startup (server restarted)
+    conn.execute("UPDATE scan_progress SET status = 'error', error = 'Server restarted' WHERE status = 'running'")
     # Initialize extension tables
     init_auth_tables(conn)
     init_remediation_tables(conn)
@@ -170,11 +231,25 @@ def run_scan_task(task_id, file_content, project_name, filename='requirements.tx
             except:
                 pass
         else:
-            # No PyPI packages - create minimal dep_tree
-            dep_tree = {'name': filename, 'version': '', 'children': [], 'total_packages': 0, 'direct_count': 0}
-            direct_packages = []
+            # No PyPI packages - build tree from non-PyPI packages
+            children = []
+            for p in non_pypi_packages:
+                children.append({
+                    'name': p['package'],
+                    'version': p.get('version', ''),
+                    'children': [],
+                    'vuln_count': 0,
+                })
+            dep_tree = {
+                'name': filename,
+                'version': '',
+                'children': children,
+                'total_packages': len(children),
+                'direct_count': len(children),
+            }
+            direct_packages = [p['package'] for p in non_pypi_packages]
             progress['progress'] = 55
-            progress['message'] = f'No PyPI packages to resolve. {len(non_pypi_packages)} non-PyPI packages found.'
+            progress['message'] = f'Loaded {len(non_pypi_packages)} non-PyPI packages.'
 
         if not resolved_packages and not non_pypi_packages:
             progress['status'] = 'error'
@@ -269,8 +344,8 @@ def run_scan_task(task_id, file_content, project_name, filename='requirements.tx
             '''INSERT INTO scans 
                (project_name, scan_time, total_packages, vulnerable_packages, total_vulnerabilities,
                 critical_count, high_count, medium_count, low_count, risk_score,
-                requirements_content, scan_data, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                requirements_content, scan_data, status, task_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             (project_name, now_beijing().strftime('%Y-%m-%d %H:%M:%S'),
              scan_result['total_packages'], scan_result['vulnerable_packages'],
              scan_result['total_vulnerabilities'],
@@ -279,7 +354,7 @@ def run_scan_task(task_id, file_content, project_name, filename='requirements.tx
              risk_score,
              file_content,
              json.dumps(scan_result, ensure_ascii=False),
-             'completed')
+             'completed', task_id)
         )
         scan_id = cursor.lastrowid
         conn.commit()
@@ -303,10 +378,12 @@ def run_scan_task(task_id, file_content, project_name, filename='requirements.tx
         progress['progress'] = 100
         progress['message'] = 'Scan completed successfully!'
         progress['scan_id'] = scan_id
+        _save_progress(task_id, progress)
 
     except Exception as e:
         progress['status'] = 'error'
         progress['error'] = str(e)
+        _save_progress(task_id, progress)
         import traceback
         traceback.print_exc()
 
@@ -320,6 +397,7 @@ def index():
 
 
 @app.route('/scan', methods=['POST'])
+@login_required
 def start_scan():
     """Start a new scan. Accepts JSON or multipart form data.
 
@@ -405,10 +483,14 @@ def start_scan():
 
 @app.route('/api/scan/<task_id>/status')
 def scan_status(task_id):
-    """Check scan progress."""
-    if task_id not in scan_progress:
-        return jsonify({'error': 'Task not found'}), 404
-    return jsonify(scan_progress[task_id])
+    """Check scan progress. Falls back to database if not in memory."""
+    if task_id in scan_progress:
+        return jsonify(scan_progress[task_id])
+    # Fall back to database
+    db_progress = _load_progress(task_id)
+    if db_progress:
+        return jsonify(db_progress)
+    return jsonify({'error': 'Task not found'}), 404
 
 
 @app.route('/result/<int:scan_id>')
@@ -448,13 +530,20 @@ def history_page():
 
 @app.route('/api/history')
 def history_data():
-    """Get scan history as JSON."""
+    """Get scan history as JSON with pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(per_page, 100)  # cap at 100
+    offset = (page - 1) * per_page
+
     conn = get_db()
+    total = conn.execute('SELECT COUNT(*) as cnt FROM scans').fetchone()['cnt']
     rows = conn.execute(
         '''SELECT id, project_name, scan_time, total_packages, vulnerable_packages,
                   total_vulnerabilities, critical_count, high_count, medium_count, low_count,
                   risk_score, status
-           FROM scans ORDER BY id DESC'''
+           FROM scans ORDER BY id DESC LIMIT ? OFFSET ?''',
+        (per_page, offset)
     ).fetchall()
     conn.close()
 
@@ -474,10 +563,17 @@ def history_data():
             'risk_score': row['risk_score'],
             'status': row['status'],
         })
-    return jsonify(history)
+    return jsonify({
+        'scans': history,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page if per_page > 0 else 0,
+    })
 
 
 @app.route('/api/scan/<int:scan_id>', methods=['DELETE'])
+@login_required
 def delete_scan(scan_id):
     """Delete a scan record."""
     conn = get_db()
@@ -520,24 +616,33 @@ def stats():
 def dependency_graph(scan_id):
     """Serve the SVG dependency graph for a scan."""
     conn = get_db()
-    row = conn.execute('SELECT project_name FROM scans WHERE id = ?', (scan_id,)).fetchone()
+    row = conn.execute('SELECT project_name, task_id FROM scans WHERE id = ?', (scan_id,)).fetchone()
     conn.close()
     if not row:
         return jsonify({'error': 'Scan not found'}), 404
 
-    # Try to find the SVG in web_reports directories
+    # Look up SVG by task_id (stored during scan)
+    task_id = row['task_id'] if 'task_id' in row.keys() else None
+    if task_id:
+        svg_path = os.path.join(PROJECT_DIR, 'web_reports', task_id, 'dependency_graph.svg')
+        if os.path.exists(svg_path):
+            return send_file(svg_path, mimetype='image/svg+xml')
+
+    # Fallback: iterate web_reports directories matching by project_name
     web_reports_dir = os.path.join(PROJECT_DIR, 'web_reports')
     if os.path.exists(web_reports_dir):
         for dir_name in os.listdir(web_reports_dir):
             svg_path = os.path.join(web_reports_dir, dir_name, 'dependency_graph.svg')
             if os.path.exists(svg_path):
-                # Verify this is the right scan by checking the JSON metadata
                 json_path = os.path.join(web_reports_dir, dir_name, 'scan_results.json')
                 if os.path.exists(json_path):
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    if data.get('project_name') == row['project_name']:
-                        return send_file(svg_path, mimetype='image/svg+xml')
+                    try:
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        if data.get('project_name') == row['project_name']:
+                            return send_file(svg_path, mimetype='image/svg+xml')
+                    except:
+                        pass
 
     # Fallback: check main reports directory
     main_svg = os.path.join(PROJECT_DIR, 'reports', 'dependency_graph.svg')
@@ -868,6 +973,7 @@ def package_detail(name):
 # ============================================================================
 
 @app.route('/api/export/<int:scan_id>/<fmt>')
+@login_required
 def export_scan(scan_id, fmt):
     """Export scan data in the requested format."""
     conn = get_db()
@@ -884,6 +990,7 @@ def export_scan(scan_id, fmt):
         return jsonify(scan_data)
 
     elif fmt == 'sbom':
+        from modules.sbom_generator import PURL_SCHEMES
         sbom = {
             'bomFormat': 'CycloneDX',
             'specVersion': '1.4',
@@ -896,7 +1003,7 @@ def export_scan(scan_id, fmt):
                     'type': 'library',
                     'name': pkg.get('package', ''),
                     'version': pkg.get('version', ''),
-                    'purl': 'pkg:pypi/' + pkg.get('package', '').lower(),
+                    'purl': f"pkg:{PURL_SCHEMES.get(pkg.get('ecosystem', 'PyPI'), 'pypi')}/{pkg.get('package', '').lower()}",
                 }
                 for pkg in scan_data.get('packages', [])
             ],
@@ -906,7 +1013,15 @@ def export_scan(scan_id, fmt):
         return response
 
     elif fmt == 'svg':
-        # Try to find the SVG file
+        # Look up SVG by task_id (stored during scan)
+        task_id = row['task_id'] if 'task_id' in row.keys() else None
+        if task_id:
+            svg_path = os.path.join(PROJECT_DIR, 'web_reports', task_id, 'dependency_graph.svg')
+            if os.path.exists(svg_path):
+                return send_file(svg_path, mimetype='image/svg+xml',
+                                 as_attachment=True,
+                                 download_name=f'{safe_name}_dep_graph.svg')
+        # Fallback: iterate web_reports directories matching by project_name
         web_reports_dir = os.path.join(PROJECT_DIR, 'web_reports')
         if os.path.exists(web_reports_dir):
             for dir_name in os.listdir(web_reports_dir):
@@ -914,12 +1029,15 @@ def export_scan(scan_id, fmt):
                 if os.path.exists(svg_path):
                     json_path = os.path.join(web_reports_dir, dir_name, 'scan_results.json')
                     if os.path.exists(json_path):
-                        with open(json_path, 'r', encoding='utf-8') as f:
-                            d = json.load(f)
-                        if d.get('project_name') == project_name:
-                            return send_file(svg_path, mimetype='image/svg+xml',
-                                             as_attachment=True,
-                                             download_name=f'{safe_name}_dep_graph.svg')
+                        try:
+                            with open(json_path, 'r', encoding='utf-8') as f:
+                                d = json.load(f)
+                            if d.get('project_name') == project_name:
+                                return send_file(svg_path, mimetype='image/svg+xml',
+                                                 as_attachment=True,
+                                                 download_name=f'{safe_name}_dep_graph.svg')
+                        except:
+                            pass
         # Fallback: generate a simple text-based SVG from dep tree
         tree_text = scan_data.get('dependency_tree', 'No tree data')
         svg_content = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">'
@@ -931,7 +1049,7 @@ def export_scan(scan_id, fmt):
                          download_name=f'{safe_name}_dep_graph.svg')
 
     elif fmt == 'requirements':
-        lines = scan_data.get('requirements_content', '')
+        lines = row['requirements_content'] or ''
         if not lines:
             for pkg in scan_data.get('packages', []):
                 if pkg.get('is_direct'):
@@ -1008,7 +1126,7 @@ def quick_check(package):
 @app.route('/api/parse', methods=['POST'])
 def parse_preview():
     """Parse a file and return detected packages without vulnerability scanning."""
-    from parsers import parse_file, detect_format
+    from parsers import parse_file, detect_format, get_supported_formats
 
     if request.content_type and 'multipart' in request.content_type:
         uploaded = request.files.get('file')
@@ -1245,6 +1363,7 @@ def remediation_data(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/whitelist', methods=['POST'])
+@login_required
 def add_whitelist(scan_id):
     """Add a vulnerability to whitelist (ignore)."""
     data = request.get_json(silent=True) or {}
@@ -1274,16 +1393,24 @@ def add_whitelist(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/whitelist/<vuln_id>', methods=['DELETE'])
+@login_required
 def remove_whitelist(scan_id, vuln_id):
     """Remove a vulnerability from whitelist."""
+    pkg = request.args.get('package', '')
     conn = get_db()
-    conn.execute('DELETE FROM whitelist WHERE scan_id = ? AND vuln_id = ?', (scan_id, vuln_id))
+    if pkg:
+        conn.execute('DELETE FROM whitelist WHERE scan_id = ? AND vuln_id = ? AND package_name = ?',
+                      (scan_id, vuln_id, pkg))
+    else:
+        conn.execute('DELETE FROM whitelist WHERE scan_id = ? AND vuln_id = ?',
+                      (scan_id, vuln_id))
     conn.commit()
     conn.close()
     return jsonify({'success': True})
 
 
 @app.route('/api/remediation/<int:scan_id>/fix-script')
+@login_required
 def download_fix_script(scan_id):
     """Download batch fix script for a scan."""
     conn = get_db()
@@ -1304,6 +1431,7 @@ def download_fix_script(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/fixed-requirements')
+@login_required
 def download_fixed_requirements(scan_id):
     """Download fixed requirements.txt."""
     conn = get_db()
@@ -1334,6 +1462,7 @@ def alerts_page():
 
 
 @app.route('/api/alert-rules', methods=['GET', 'POST'])
+@login_required
 def alert_rules():
     """Get or create alert rules."""
     if request.method == 'POST':
@@ -1370,6 +1499,7 @@ def alert_rules():
 
 
 @app.route('/api/alert-rules/<int:rule_id>', methods=['DELETE'])
+@login_required
 def delete_alert_rule(rule_id):
     """Delete an alert rule."""
     conn = get_db()
@@ -1763,4 +1893,4 @@ if __name__ == '__main__':
     print()
     print(f"  Starting server at http://{host}:{port}")
     print()
-    app.run(host=host, port=port, debug=os.environ.get('FLASK_DEBUG', 'true').lower() == 'true')
+    app.run(host=host, port=port, debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true')

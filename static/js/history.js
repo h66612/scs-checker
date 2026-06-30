@@ -1,24 +1,46 @@
 // SCS Checker - History Page JavaScript
-// Handles: history loading, charts, search, delete
+// Handles: history loading, charts, search, delete, pagination
 
 let histSeverityChart = null;
 let histTrendChart = null;
 let allHistory = [];
+let currentPage = 1;
+let totalPages = 1;
+const PER_PAGE = 20;
 
 document.addEventListener('DOMContentLoaded', function() {
-    loadHistory();
+    // Read the initial page from URL query parameters (e.g. ?page=2)
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = parseInt(params.get('page'), 10);
+    if (pageParam && pageParam > 0) currentPage = pageParam;
+    loadHistory(currentPage);
     loadHistoryStats();
     document.getElementById('historySearch').addEventListener('input', filterHistory);
     document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+    // Keep pagination in sync with browser back/forward navigation
+    window.addEventListener('popstate', function() {
+        const p = new URLSearchParams(window.location.search).get('page');
+        currentPage = (p && parseInt(p, 10) > 0) ? parseInt(p, 10) : 1;
+        loadHistory(currentPage);
+    });
 });
 
-// Load history data
-function loadHistory() {
-    fetch('/api/history')
+// Load history data (paginated)
+function loadHistory(page) {
+    currentPage = page || 1;
+    const url = '/api/history?page=' + currentPage + '&per_page=' + PER_PAGE;
+    fetch(url)
         .then(r => r.json())
         .then(data => {
-            allHistory = data;
-            renderHistoryTable(data);
+            // API now returns { scans, total, page, per_page, total_pages }
+            allHistory = data.scans || [];
+            totalPages = data.total_pages || 1;
+            // Clamp the current page if it ended up out of range
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            }
+            renderHistoryTable(allHistory);
+            renderPagination();
         })
         .catch(err => console.error('History load error:', err));
 }
@@ -65,6 +87,93 @@ function renderHistoryTable(data) {
             '</td>' +
             '</tr>';
     }).join('');
+}
+
+// Render pagination controls below the history table
+function renderPagination() {
+    const wrapper = document.getElementById('historyPagination');
+    const info = document.getElementById('paginationInfo');
+    const controls = document.getElementById('paginationControls');
+    if (!wrapper || !info || !controls) return;
+
+    // Hide the whole section when there is a single page (or none)
+    const hide = totalPages <= 1;
+    wrapper.style.display = hide ? 'none' : 'flex';
+    if (hide) return;
+
+    info.textContent = '第 ' + currentPage + ' / ' + totalPages + ' 页';
+
+    let html = '';
+    // Previous button (disabled on the first page)
+    const prevDisabled = currentPage <= 1;
+    html += '<button class="btn btn-sm btn-outline-info" ' + (prevDisabled ? 'disabled' : '') +
+            ' onclick="goToPage(' + (currentPage - 1) + ')">' +
+            '<i class="bi bi-chevron-left"></i> 上一页</button>';
+
+    // Page number buttons with ellipsis for large ranges
+    getPageRange(currentPage, totalPages).forEach(function(p) {
+        if (p === '...') {
+            html += '<span class="text-muted px-1 align-middle">…</span>';
+        } else {
+            const active = (p === currentPage);
+            html += '<button class="btn btn-sm ' + (active ? 'btn-info' : 'btn-outline-info') +
+                    '" ' + (active ? 'disabled' : '') +
+                    ' onclick="goToPage(' + p + ')">' + p + '</button>';
+        }
+    });
+
+    // Next button (disabled on the last page)
+    const nextDisabled = currentPage >= totalPages;
+    html += '<button class="btn btn-sm btn-outline-info" ' + (nextDisabled ? 'disabled' : '') +
+            ' onclick="goToPage(' + (currentPage + 1) + ')">' +
+            '下一页 <i class="bi bi-chevron-right"></i></button>';
+
+    controls.innerHTML = html;
+}
+
+// Build a compact page range with ellipsis, e.g. [1, '...', 4, 5, 6, '...', 10]
+function getPageRange(current, total) {
+    const delta = 2;
+    const range = [];
+    const result = [];
+    let last = null;
+
+    range.push(1);
+    for (let i = current - delta; i <= current + delta; i++) {
+        if (i > 1 && i < total) range.push(i);
+    }
+    if (total > 1) range.push(total);
+
+    range.forEach(function(p) {
+        if (last !== null) {
+            if (p - last === 2) {
+                result.push(last + 1);
+            } else if (p - last !== 1) {
+                result.push('...');
+            }
+        }
+        result.push(p);
+        last = p;
+    });
+    return result;
+}
+
+// Navigate to a specific page
+function goToPage(page) {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    currentPage = page;
+    // Reflect the page in the URL so it is shareable and back/forward works
+    const url = new URL(window.location.href);
+    if (page === 1) {
+        url.searchParams.delete('page');
+    } else {
+        url.searchParams.set('page', page);
+    }
+    history.pushState({ page: page }, '', url);
+    loadHistory(page);
+    // Scroll the table back into view after switching pages
+    const table = document.getElementById('historyTable');
+    if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Filter history by search
@@ -206,8 +315,8 @@ function confirmDelete() {
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
             if (modal) modal.hide();
-            // Reload data
-            loadHistory();
+            // Reload data (stay on the current page)
+            loadHistory(currentPage);
             loadHistoryStats();
         })
         .catch(function(err) { console.error('Delete error:', err); });

@@ -9,6 +9,24 @@ import uuid
 from datetime import datetime
 from typing import Dict, List
 
+# PURL scheme mapping: ecosystem name -> purl type
+PURL_SCHEMES = {
+    'PyPI': 'pypi',
+    'npm': 'npm',
+    'Maven': 'maven',
+    'Go': 'golang',
+    'crates.io': 'cargo',
+    'NuGet': 'nuget',
+    'RubyGems': 'gem',
+    'Packagist': 'composer',
+    'Composer': 'composer',
+    'Pub': 'pub',
+    'Swift': 'swift',
+    'Hackage': 'hackage',
+    'Hex': 'hex',
+    'CocoaPods': 'cocoapods',
+}
+
 
 def generate_sbom(
     resolved_packages: Dict[str, str],
@@ -20,7 +38,7 @@ def generate_sbom(
 
     Args:
         resolved_packages: dict of {package_name: version}
-        scan_result: vulnerability scan results
+        scan_result: vulnerability scan results (includes ecosystem per package)
         output_dir: directory to save the SBOM
         project_name: project name
 
@@ -28,6 +46,11 @@ def generate_sbom(
         Path to the generated SBOM file.
     """
     os.makedirs(output_dir, exist_ok=True)
+
+    # Build package name -> ecosystem map from scan results
+    eco_map = {}
+    for pkg_result in scan_result.get("packages", []):
+        eco_map[pkg_result.get("package", "").lower()] = pkg_result.get("ecosystem", "PyPI")
 
     # Build CycloneDX SBOM structure
     components = []
@@ -43,11 +66,16 @@ def generate_sbom(
                     })
                 break
 
+        # Generate ecosystem-aware purl
+        ecosystem = eco_map.get(pkg_name.lower(), 'PyPI')
+        purl_type = PURL_SCHEMES.get(ecosystem, 'pypi')
+        purl = f"pkg:{purl_type}/{pkg_name}@{version}"
+
         component = {
             "type": "library",
             "name": pkg_name,
             "version": version,
-            "purl": f"pkg:pypi/{pkg_name}@{version}",
+            "purl": purl,
             "bom-ref": f"{pkg_name}@{version}",
         }
 

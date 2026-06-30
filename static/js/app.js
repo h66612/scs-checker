@@ -417,7 +417,14 @@ function handleFileSelect(e) {
         .then(data => {
             document.getElementById('uploadFormat').textContent = data.format || 'unknown';
         })
-        .catch(() => {});
+        .catch(err => {
+            var formatDisplay = document.getElementById('uploadFormat');
+            if (formatDisplay) {
+                formatDisplay.textContent = '检测失败';
+                formatDisplay.classList.add('text-warning');
+            }
+            console.error('[SCS] Format detection error:', err);
+        });
     };
     if (file.size < 10 * 1024 * 1024) { // < 10MB
         reader.readAsText(file);
@@ -588,6 +595,7 @@ function pollScanProgress(taskId) {
         fetch('/api/scan/' + taskId + '/status')
             .then(r => r.json())
             .then(data => {
+                window.pollNetworkErrors = 0;
                 if (data.error) { clearInterval(interval); showScanError(data.error); return; }
 
                 document.getElementById('scanProgressBar').style.width = (data.progress || 0) + '%';
@@ -608,7 +616,14 @@ function pollScanProgress(taskId) {
                     showScanError(data.error || '扫描失败');
                 }
             })
-            .catch(() => {});
+            .catch(err => {
+                console.error('[SCS] Poll error:', err);
+                window.pollNetworkErrors = (window.pollNetworkErrors || 0) + 1;
+                if (window.pollNetworkErrors > 5) {
+                    clearInterval(interval);
+                    showScanError('网络连接中断，请检查网络后重试');
+                }
+            });
     }, 1000);
 }
 
