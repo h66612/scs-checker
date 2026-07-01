@@ -36,13 +36,28 @@ def verify_password(password, stored_hash):
         return False
 
 
+def _is_api_request():
+    """Detect if the request expects JSON (fetch/XHR) rather than HTML."""
+    if request.path.startswith('/api/'):
+        return True
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        ct = (request.content_type or '').lower()
+        if 'json' in ct:
+            return True
+    accept = (request.headers.get('Accept') or '').lower()
+    if 'application/json' in accept and 'text/html' not in accept:
+        return True
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    return False
+
+
 def login_required(f):
     """Decorator: require login."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            # API requests get JSON error, page requests redirect
-            if request.path.startswith('/api/'):
+            if _is_api_request():
                 return jsonify({'error': 'Authentication required', 'code': 'AUTH_REQUIRED'}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
@@ -54,11 +69,11 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            if request.path.startswith('/api/'):
+            if _is_api_request():
                 return jsonify({'error': 'Authentication required', 'code': 'AUTH_REQUIRED'}), 401
             return redirect(url_for('login_page'))
         if session.get('role') != 'admin':
-            if request.path.startswith('/api/'):
+            if _is_api_request():
                 return jsonify({'error': 'Admin access required', 'code': 'FORBIDDEN'}), 403
             return render_template('error.html', message='需要管理员权限'), 403
         return f(*args, **kwargs)

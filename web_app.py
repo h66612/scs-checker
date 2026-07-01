@@ -397,7 +397,6 @@ def index():
 
 
 @app.route('/scan', methods=['POST'])
-@login_required
 def start_scan():
     """Start a new scan. Accepts JSON or multipart form data.
 

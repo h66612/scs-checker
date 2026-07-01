@@ -573,8 +573,21 @@ function submitScan(body, isFormData) {
     }
 
     fetch('/scan', fetchOpts)
-        .then(r => r.json())
+        .then(r => {
+            if (r.status === 401) {
+                showScanError('请先登录后再进行扫描');
+                setTimeout(() => window.location.href = '/login', 1500);
+                return null;
+            }
+            var ct = r.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                showScanError('服务器返回了非JSON响应（可能正在重启，请稍后重试）');
+                return null;
+            }
+            return r.json();
+        })
         .then(data => {
+            if (!data) return;
             if (data.error) { showScanError(data.error); return; }
             if (data.task_id) pollScanProgress(data.task_id);
         })
@@ -593,7 +606,13 @@ function pollScanProgress(taskId) {
             return;
         }
         fetch('/api/scan/' + taskId + '/status')
-            .then(r => r.json())
+            .then(r => {
+                var ct = r.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('服务器返回非JSON响应');
+                }
+                return r.json();
+            })
             .then(data => {
                 window.pollNetworkErrors = 0;
                 if (data.error) { clearInterval(interval); showScanError(data.error); return; }
