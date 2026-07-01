@@ -310,16 +310,25 @@ function showDeleteModal(scanId) {
 function confirmDelete() {
     const scanId = document.getElementById('deleteScanId').textContent;
     fetch('/api/scan/' + scanId, { method: 'DELETE' })
-        .then(r => r.json())
-        .then(function() {
-            // Close modal
+        .then(r => {
+            if (r.status === 401) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                if (modal) modal.hide();
+                alert('删除记录需要登录管理员账号');
+                window.location.href = '/login';
+                return null;
+            }
+            return r.json();
+        })
+        .then(function(data) {
+            if (!data) return;
+            if (data.error) { alert(data.error); return; }
             const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
             if (modal) modal.hide();
-            // Reload data (stay on the current page)
             loadHistory(currentPage);
             loadHistoryStats();
         })
-        .catch(function(err) { console.error('Delete error:', err); });
+        .catch(function(err) { console.error('Delete error:', err); alert('删除失败，请重试'); });
 }
 
 // HTML escape

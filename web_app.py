@@ -572,6 +572,7 @@ def history_data():
 
 
 @app.route('/api/scan/<int:scan_id>', methods=['DELETE'])
+@login_required
 def delete_scan(scan_id):
     """Delete a scan record."""
     conn = get_db()
@@ -1232,6 +1233,7 @@ def logout():
 
 
 @app.route('/admin')
+@admin_required
 def admin_page():
     """Admin panel for user management and audit logs."""
     return render_template('admin.html')
@@ -1355,6 +1357,7 @@ def remediation_data(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/whitelist', methods=['POST'])
+@login_required
 def add_whitelist(scan_id):
     """Add a vulnerability to whitelist (ignore)."""
     data = request.get_json(silent=True) or {}
@@ -1384,6 +1387,7 @@ def add_whitelist(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/whitelist/<vuln_id>', methods=['DELETE'])
+@login_required
 def remove_whitelist(scan_id, vuln_id):
     """Remove a vulnerability from whitelist."""
     pkg = request.args.get('package', '')
@@ -1400,6 +1404,7 @@ def remove_whitelist(scan_id, vuln_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/fix-script')
+@login_required
 def download_fix_script(scan_id):
     """Download batch fix script for a scan."""
     conn = get_db()
@@ -1420,6 +1425,7 @@ def download_fix_script(scan_id):
 
 
 @app.route('/api/remediation/<int:scan_id>/fixed-requirements')
+@login_required
 def download_fixed_requirements(scan_id):
     """Download fixed requirements.txt."""
     conn = get_db()
@@ -1450,6 +1456,7 @@ def alerts_page():
 
 
 @app.route('/api/alert-rules', methods=['GET', 'POST'])
+@login_required
 def alert_rules():
     """Get or create alert rules."""
     if request.method == 'POST':
@@ -1486,6 +1493,7 @@ def alert_rules():
 
 
 @app.route('/api/alert-rules/<int:rule_id>', methods=['DELETE'])
+@login_required
 def delete_alert_rule(rule_id):
     """Delete an alert rule."""
     conn = get_db()
