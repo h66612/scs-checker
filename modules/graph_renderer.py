@@ -1,16 +1,16 @@
 """
 SVG 依赖关系图渲染器 - 纯 Python 实现，无需 Graphviz 二进制程序。
-生成带有漏洞颜色标记的依赖树 SVG 图像。
+生成带有漏洞颜色标记的依赖树 SVG 图像（从左到右布局）。
 """
 import html as html_module
 from typing import Dict, List, Optional
 
 
-# Layout parameters - compact for better readability
+# Layout parameters
 NODE_WIDTH = 130
-NODE_HEIGHT = 38
-H_GAP = 14
-V_GAP = 44
+NODE_HEIGHT = 36
+H_GAP = 50   # horizontal gap between depth levels (left-to-right)
+V_GAP = 14   # vertical gap between sibling nodes
 PADDING = 30
 FONT_SIZE = 10
 VERSION_FONT_SIZE = 8
@@ -31,7 +31,7 @@ def render_dependency_tree_svg(
     scan_result: Dict,
     output_path: str,
 ) -> str:
-    """Render dependency tree as an SVG image.
+    """Render dependency tree as an SVG image (left-to-right layout).
 
     Args:
         dep_tree: dependency tree dict
@@ -57,41 +57,41 @@ def render_dependency_tree_svg(
                     worst = "medium"
             vuln_lookup[pkg_name] = worst
 
-    # Calculate tree layout
+    # Calculate tree layout — left-to-right (depth = x, leaf counter = y)
     positions = {}
-    x_counter = [0]
+    y_counter = [0]
 
     def assign_positions(node: Dict, depth: int):
         children = node.get("children", [])
         if not children:
-            x = x_counter[0]
-            x_counter[0] += 1
-            positions[id(node)] = (x, depth)
-            return x
+            y = y_counter[0]
+            y_counter[0] += 1
+            positions[id(node)] = (depth, y)
+            return y
 
-        child_xs = []
+        child_ys = []
         for child in children:
-            cx = assign_positions(child, depth + 1)
-            child_xs.append(cx)
+            cy = assign_positions(child, depth + 1)
+            child_ys.append(cy)
 
-        x = sum(child_xs) / len(child_xs)
-        positions[id(node)] = (x, depth)
-        return x
+        y = sum(child_ys) / len(child_ys)
+        positions[id(node)] = (depth, y)
+        return y
 
     assign_positions(dep_tree, 0)
 
-    # Calculate SVG dimensions
-    max_x = max(pos[0] for pos in positions.values()) if positions else 0
-    max_depth = max(pos[1] for pos in positions.values()) if positions else 0
+    # Calculate SVG dimensions — width based on depth, height based on leaf count
+    max_depth = max(pos[0] for pos in positions.values()) if positions else 0
+    max_y = max(pos[1] for pos in positions.values()) if positions else 0
 
-    svg_width = int((max_x + 1) * (NODE_WIDTH + H_GAP) + PADDING * 2)
-    svg_height = int((max_depth + 1) * (NODE_HEIGHT + V_GAP) + PADDING * 2 + 60)
+    svg_width = int((max_depth + 1) * (NODE_WIDTH + H_GAP) + PADDING * 2)
+    svg_height = int((max_y + 1) * (NODE_HEIGHT + V_GAP) + PADDING * 2 + 50)
 
     # Generate SVG
     svg_parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="{svg_height}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_width}" height="{svg_height}" '
         f'viewBox="0 0 {svg_width} {svg_height}" '
-        f'style="max-width: {svg_width}px; background: #f8f9fa; display: block; margin: 0 auto;">',
+        f'style="background: #f8f9fa;">',
         '<defs>',
         '  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">',
         '    <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>',
@@ -108,7 +108,7 @@ def render_dependency_tree_svg(
 
     # Title
     svg_parts.append(
-        f'<text x="{svg_width // 2}" y="28" text-anchor="middle" '
+        f'<text x="{PADDING}" y="24" '
         f'font-size="16" font-weight="bold" fill="#1a1a2e">Dependency Graph</text>'
     )
 
@@ -117,21 +117,23 @@ def render_dependency_tree_svg(
         pos = positions.get(id(node))
         if not pos:
             return
-        parent_cx = PADDING + pos[0] * (NODE_WIDTH + H_GAP) + NODE_WIDTH / 2
-        parent_cy = PADDING + 50 + pos[1] * (NODE_HEIGHT + V_GAP) + NODE_HEIGHT
+        # Parent right edge
+        parent_cx = PADDING + pos[0] * (NODE_WIDTH + H_GAP) + NODE_WIDTH
+        parent_cy = PADDING + 40 + pos[1] * (NODE_HEIGHT + V_GAP) + NODE_HEIGHT / 2
 
         for child in node.get("children", []):
             child_pos = positions.get(id(child))
             if not child_pos:
                 continue
-            child_cx = PADDING + child_pos[0] * (NODE_WIDTH + H_GAP) + NODE_WIDTH / 2
-            child_cy = PADDING + 50 + child_pos[1] * (NODE_HEIGHT + V_GAP)
+            # Child left edge
+            child_cx = PADDING + child_pos[0] * (NODE_WIDTH + H_GAP)
+            child_cy = PADDING + 40 + child_pos[1] * (NODE_HEIGHT + V_GAP) + NODE_HEIGHT / 2
 
-            # Draw curved edge
-            mid_y = (parent_cy + child_cy) / 2
+            # Draw curved edge (left to right)
+            mid_x = (parent_cx + child_cx) / 2
             svg_parts.append(
                 f'<path class="edge" d="M{parent_cx},{parent_cy} '
-                f'C{parent_cx},{mid_y} {child_cx},{mid_y} {child_cx},{child_cy}"/>'
+                f'C{mid_x},{parent_cy} {mid_x},{child_cy} {child_cx},{child_cy}"/>'
             )
             draw_edges(child)
 
@@ -144,11 +146,11 @@ def render_dependency_tree_svg(
             return
 
         x = PADDING + pos[0] * (NODE_WIDTH + H_GAP)
-        y = PADDING + 50 + pos[1] * (NODE_HEIGHT + V_GAP)
+        y = PADDING + 40 + pos[1] * (NODE_HEIGHT + V_GAP)
 
         name = node.get("name", "")
         version = node.get("version", "")
-        is_root = (pos[1] == 0)
+        is_root = (pos[0] == 0)
 
         if is_root:
             color_key = "root"
@@ -167,7 +169,7 @@ def render_dependency_tree_svg(
         # Package name
         display_name = name[:22] + ".." if len(name) > 24 else name
         svg_parts.append(
-            f'<text class="node-name" x="{x + NODE_WIDTH // 2}" y="{y + 18}" '
+            f'<text class="node-name" x="{x + NODE_WIDTH // 2}" y="{y + 16}" '
             f'text-anchor="middle" font-size="{FONT_SIZE}" fill="{colors["text"]}">'
             f'{html_module.escape(display_name)}</text>'
         )
@@ -176,7 +178,7 @@ def render_dependency_tree_svg(
         if version:
             display_ver = version[:20] if len(version) <= 20 else version[:18] + ".."
             svg_parts.append(
-                f'<text class="node-version" x="{x + NODE_WIDTH // 2}" y="{y + 34}" '
+                f'<text class="node-version" x="{x + NODE_WIDTH // 2}" y="{y + 30}" '
                 f'text-anchor="middle" font-size="{VERSION_FONT_SIZE}" fill="{colors["text"]}">'
                 f'{html_module.escape(display_ver)}</text>'
             )
@@ -187,7 +189,7 @@ def render_dependency_tree_svg(
     draw_nodes(dep_tree)
 
     # Legend
-    legend_y = svg_height - 35
+    legend_y = svg_height - 25
     legend_items = [
         ("Critical", COLORS["critical"]["bg"]),
         ("High", COLORS["high"]["bg"]),
