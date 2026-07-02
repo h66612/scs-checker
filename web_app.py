@@ -1648,7 +1648,7 @@ def vulnerability_trends():
     """Get vulnerability trends across all scans."""
     conn = get_db()
     rows = conn.execute('''
-        SELECT id, project_name, scan_time, total_vulnerabilities,
+        SELECT id, project_name, scan_time, total_vulnerabilities, total_packages,
                critical_count, high_count, medium_count, low_count, risk_score
         FROM scans WHERE status = 'completed' ORDER BY id ASC
     ''').fetchall()
@@ -1656,11 +1656,14 @@ def vulnerability_trends():
 
     trends = []
     cumulative_vulns = 0
+    total_pkgs = 0
     for r in rows:
         cumulative_vulns += r['total_vulnerabilities']
+        total_pkgs += r['total_packages'] if r['total_packages'] else 0
         trends.append({
             'id': r['id'], 'name': r['project_name'], 'time': r['scan_time'],
             'vulns': r['total_vulnerabilities'], 'cumulative': cumulative_vulns,
+            'total_packages': r['total_packages'] if r['total_packages'] else 0,
             'critical': r['critical_count'], 'high': r['high_count'],
             'medium': r['medium_count'], 'low': r['low_count'],
             'risk': r['risk_score'],
@@ -1676,6 +1679,7 @@ def vulnerability_trends():
         'trends': trends,
         'total_severity': total_sev,
         'total_scans': len(trends),
+        'total_packages': total_pkgs,
         'avg_risk': round(sum(t['risk'] for t in trends) / len(trends), 1) if trends else 0,
     })
 
