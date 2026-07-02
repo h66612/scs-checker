@@ -6,14 +6,14 @@ import html as html_module
 from typing import Dict, List, Optional
 
 
-# Layout parameters
-NODE_WIDTH = 180
-NODE_HEIGHT = 44
-H_GAP = 24
-V_GAP = 56
-PADDING = 40
-FONT_SIZE = 11
-VERSION_FONT_SIZE = 9
+# Layout parameters - compact for better readability
+NODE_WIDTH = 130
+NODE_HEIGHT = 38
+H_GAP = 14
+V_GAP = 44
+PADDING = 30
+FONT_SIZE = 10
+VERSION_FONT_SIZE = 8
 
 # Severity colors
 COLORS = {
@@ -89,8 +89,9 @@ def render_dependency_tree_svg(
 
     # Generate SVG
     svg_parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_width}" height="{svg_height}" '
-        f'viewBox="0 0 {svg_width} {svg_height}">',
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="{svg_height}" '
+        f'viewBox="0 0 {svg_width} {svg_height}" '
+        f'style="max-width: {svg_width}px; background: #f8f9fa; display: block; margin: 0 auto;">',
         '<defs>',
         '  <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">',
         '    <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>',
