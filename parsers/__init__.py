@@ -80,6 +80,7 @@ def detect_format(filename, content=''):
         'dockerfile': 'dockerfile',
         'docker-compose.yml': 'docker_compose',
         'docker-compose.yaml': 'docker_compose',
+        'mix.exs': 'mix_exs',
     }
 
     if base in exact:
@@ -892,6 +893,33 @@ def _parse_docker_compose(content, filename=''):
     return packages
 
 register_parser('docker_compose', ['.yml', '.yaml'], _parse_docker_compose, 'Docker')
+
+
+# =============================================================================
+# Elixir (Hex) Ecosystem
+# =============================================================================
+
+def _parse_mix_exs(content, filename=''):
+    """Parse Elixir mix.exs dependency file.
+    Extracts {:package_name, "version"} and {:package_name, "~> version"} tuples.
+    """
+    packages = []
+    # Match patterns like {:phoenix, "~> 1.4.0"} or {:plug, ">= 1.0.0"}
+    # Also match {:package_name, github: ...} (skip these, no version)
+    for m in re.finditer(r'\{:(\w[\w.]*)\s*,\s*"([^"]+)"', content):
+        name = m.group(1).strip()
+        version = _clean_version(m.group(2).strip())
+        if name and version:
+            packages.append({'package': name, 'version': version, 'ecosystem': 'Hex'})
+    # Also match {:package_name, ~r"version"} pattern
+    for m in re.finditer(r'\{:(\w[\w.]*)\s*,\s*~r"([^"]+)"', content):
+        name = m.group(1).strip()
+        version = _clean_version(m.group(2).strip())
+        if name and version:
+            packages.append({'package': name, 'version': version, 'ecosystem': 'Hex'})
+    return packages
+
+register_parser('mix_exs', [], _parse_mix_exs, 'Hex')
 
 
 # =============================================================================
