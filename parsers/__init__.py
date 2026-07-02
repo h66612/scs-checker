@@ -203,6 +203,9 @@ def detect_format(filename, content=''):
         # Rust formats
         if '[package]' in content and '[dependencies]' in content:
             return 'cargo_toml'
+        # Elixir formats
+        if 'defmodule' in content and 'Mix.Project' in content:
+            return 'mix_exs'
         # Docker formats
         if 'FROM ' in content and ('RUN ' in content or 'COPY ' in content or 'WORKDIR' in content):
             return 'dockerfile'
