@@ -415,8 +415,23 @@ def start_scan():
         # File upload
         uploaded = request.files.get('file')
         if uploaded:
-            file_content = uploaded.read().decode('utf-8', errors='ignore')
             filename = uploaded.filename or 'unknown'
+            # Binary formats need to be saved to disk for ZIP-based parsing
+            binary_exts = ('.jar', '.war', '.apk', '.whl', '.zip')
+            if filename.lower().endswith(binary_exts):
+                raw_bytes = uploaded.read()
+                tmp_dir = os.path.join(DATA_DIR, 'uploads')
+                os.makedirs(tmp_dir, exist_ok=True)
+                safe_name = os.path.basename(filename).replace('/', '_').replace('\\', '_')
+                tmp_path = os.path.join(tmp_dir, f'{int(time.time() * 1000)}_{safe_name}')
+                with open(tmp_path, 'wb') as f:
+                    f.write(raw_bytes)
+                # Pass temp path as filename (parser opens it from disk)
+                # file_content is a marker so the empty check passes
+                filename = tmp_path
+                file_content = '__BINARY_FILE__'
+            else:
+                file_content = uploaded.read().decode('utf-8', errors='ignore')
         project_name = request.form.get('project_name', '')
         file_format = request.form.get('format')
     else:
