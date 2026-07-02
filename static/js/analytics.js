@@ -61,7 +61,7 @@ function loadTrends() {
                 return;
             }
             var trends = data.trends || data.scans || [];
-            renderTrendStats(data.summary || data.stats || {}, trends);
+            renderTrendStats(data, trends);
             renderTrendLineChart(trends);
             renderTrendStackedChart(trends);
         })
@@ -73,10 +73,18 @@ function loadTrends() {
 // Render summary stat cards (matches HTML IDs: trendTotalScans, trendTotalVulns,
 // trendAvgRisk, trendRiskTrend, trendMaxRisk, trendMinRisk, trendCriticalCount,
 // trendHighCount, trendPkgCount, trendLastScan)
-function renderTrendStats(summary, trends) {
-    var totalScans = summary.total_scans || trends.length || 0;
-    var avgRisk = summary.avg_risk || 0;
-    var totalVulns = summary.total_vulns || 0;
+function renderTrendStats(data, trends) {
+    var totalScans = data.total_scans || trends.length || 0;
+    var avgRisk = data.avg_risk || 0;
+    // Calculate total vulns from total_severity or sum of trends
+    var totalVulns = 0;
+    if (data.total_severity) {
+        var ts = data.total_severity;
+        totalVulns = (ts.critical || 0) + (ts.high || 0) + (ts.medium || 0) + (ts.low || 0);
+    }
+    if (!totalVulns) {
+        trends.forEach(function (t) { totalVulns += t.vulns || t.total_vulns || 0; });
+    }
 
     // Top stat cards
     setTextById('trendTotalScans', totalScans);
@@ -111,11 +119,19 @@ function renderTrendStats(summary, trends) {
     var minRisk = risks.length > 0 ? Math.min.apply(null, risks) : 0;
 
     var totalCritical = 0, totalHigh = 0, totalPkgs = 0;
+    // Use total_severity from API if available
+    if (data.total_severity) {
+        totalCritical = data.total_severity.critical || 0;
+        totalHigh = data.total_severity.high || 0;
+    }
+    if (!totalCritical && !totalHigh) {
+        trends.forEach(function (t) {
+            totalCritical += t.critical || 0;
+            totalHigh += t.high || 0;
+        });
+    }
     trends.forEach(function (t) {
-        var sev = t.severity || t.severity_counts || {};
-        totalCritical += sev.critical || 0;
-        totalHigh += sev.high || 0;
-        totalPkgs += t.total_packages || t.pkg_count || 0;
+        totalPkgs += t.total_packages || t.pkg_count || t.packages || 0;
     });
 
     var lastScan = '';
@@ -233,20 +249,16 @@ function renderTrendStackedChart(trends) {
         return '#' + (t.scan_id || t.id || '');
     });
     var critical = trends.map(function (t) {
-        var s = t.severity || t.severity_counts || {};
-        return s.critical || 0;
+        return t.critical || 0;
     });
     var high = trends.map(function (t) {
-        var s = t.severity || t.severity_counts || {};
-        return s.high || 0;
+        return t.high || 0;
     });
     var medium = trends.map(function (t) {
-        var s = t.severity || t.severity_counts || {};
-        return s.medium || 0;
+        return t.medium || 0;
     });
     var low = trends.map(function (t) {
-        var s = t.severity || t.severity_counts || {};
-        return s.low || 0;
+        return t.low || 0;
     });
 
     trendStackedChart = new Chart(canvas.getContext('2d'), {
