@@ -1,19 +1,13 @@
 // SCS Checker - Auth Page JavaScript
 // Handles: form submission, session check, nav user area, dynamic messages
-// Compatible with login.html template (server-side mode switching via ?mode=register)
 
 document.addEventListener('DOMContentLoaded', function () {
     // Populate navbar user area on every page
     updateNavUserArea();
 
-    // Auth form handlers (only active on the login page)
+    // Auth form handler (only active on the login page)
     var loginForm = document.getElementById('loginForm');
-    var registerForm = document.getElementById('registerForm');
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
-    if (registerForm) registerForm.addEventListener('submit', handleRegister);
-
-    // Show success message after redirect from registration
-    checkRegisteredMessage();
 });
 
 // ---------------------------------------------------------------------------
@@ -21,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // ---------------------------------------------------------------------------
 function getAuthMode() {
     if (document.getElementById('loginForm')) return 'login';
-    if (document.getElementById('registerForm')) return 'register';
     return null; // not on auth page
 }
 
@@ -97,26 +90,6 @@ function updateNavUserArea() {
 }
 
 // ---------------------------------------------------------------------------
-// After successful registration, the user is redirected to /login.
-// Detect the URL parameter and show a success banner.
-// ---------------------------------------------------------------------------
-function checkRegisteredMessage() {
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('registered') === '1') {
-        var username = params.get('username') || '';
-        showAuthMessage(
-            'success',
-            '注册成功！' + (username ? '用户 ' + escapeHtml(username) + ' ' : '') + '请登录您的账户。'
-        );
-        // Pre-fill username field
-        var loginUsername = document.getElementById('loginUsername');
-        if (loginUsername && username) {
-            loginUsername.value = username;
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Login form handler
 // ---------------------------------------------------------------------------
 function handleLogin(e) {
@@ -168,67 +141,6 @@ function resetLoginButton() {
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> 登录';
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Register form handler
-// ---------------------------------------------------------------------------
-function handleRegister(e) {
-    e.preventDefault();
-    hideAuthMessage();
-
-    var username = document.getElementById('regUsername').value.trim();
-    var email = document.getElementById('regEmail').value.trim();
-    var password = document.getElementById('regPassword').value;
-    var confirmPassword = document.getElementById('regPasswordConfirm').value;
-
-    if (!username || !email || !password) {
-        showAuthMessage('danger', '请填写所有必填字段');
-        return;
-    }
-    if (password !== confirmPassword) {
-        showAuthMessage('danger', '两次输入的密码不一致');
-        return;
-    }
-    if (password.length < 6) {
-        showAuthMessage('danger', '密码长度至少6位');
-        return;
-    }
-
-    var btn = document.getElementById('registerBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 注册中...';
-    }
-
-    fetch('/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username, email: email, password: password })
-    })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data.error) {
-                showAuthMessage('danger', data.error);
-                resetRegisterButton();
-                return;
-            }
-            // Success - redirect to login page with success flag
-            window.location.href = '/login?registered=1&username=' + encodeURIComponent(username);
-        })
-        .catch(function (err) {
-            console.error('Register error:', err);
-            showAuthMessage('danger', '注册失败: 网络错误，请重试');
-            resetRegisterButton();
-        });
-}
-
-function resetRegisterButton() {
-    var btn = document.getElementById('registerBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-person-plus-fill"></i> 注册';
     }
 }
 
