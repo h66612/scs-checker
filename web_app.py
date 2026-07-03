@@ -1556,11 +1556,13 @@ def mark_all_notifications_read():
 
 @app.route('/api/notifications/unread-count')
 def unread_notification_count():
-    """Get count of unread notifications."""
+    """Get notification stats: unread, total, and critical counts."""
     conn = get_db()
-    row = conn.execute('SELECT COUNT(*) as cnt FROM notifications WHERE is_read = 0').fetchone()
+    unread = conn.execute('SELECT COUNT(*) as cnt FROM notifications WHERE is_read = 0').fetchone()
+    total = conn.execute('SELECT COUNT(*) as cnt FROM notifications').fetchone()
+    critical = conn.execute("SELECT COUNT(*) as cnt FROM notifications WHERE severity IN ('critical', 'high')").fetchone()
     conn.close()
-    return jsonify({'count': row['cnt']})
+    return jsonify({'count': unread['cnt'], 'total': total['cnt'], 'critical': critical['cnt']})
 
 
 # ============================================================================
