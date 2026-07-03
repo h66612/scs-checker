@@ -5,7 +5,12 @@ Provides CVE knowledge base, favorites, snapshots, and compliance checking.
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+
+
+def _now_beijing():
+    """Return current time in Beijing timezone (UTC+8)."""
+    return datetime.utcnow() + timedelta(hours=8)
 
 
 def init_kb_tables(conn):
@@ -273,30 +278,28 @@ def check_alert_rules(scan_data, scan_id, conn):
     notifications_created = 0
     for rule in rules:
         triggered = False
-        title = ''
-        message = ''
+        reasons = []
 
         sev_threshold = rule['severity_threshold']
         if sev_levels.get(max_severity, 0) >= sev_levels.get(sev_threshold, 0):
             triggered = True
-            title = f'安全告警: {rule["name"]} - 检测到{max_severity.upper()}级别漏洞'
-            message = f'扫描ID {scan_id}: 发现 {sev.get(max_severity, 0)} 个{max_severity}级别漏洞'
+            reasons.append(f'检测到{max_severity.upper()}级别漏洞 {sev.get(max_severity, 0)} 个')
 
         if rule['vuln_count_threshold'] > 0 and scan_data.get('total_vulnerabilities', 0) >= rule['vuln_count_threshold']:
             triggered = True
-            title = f'安全告警: {rule["name"]} - 漏洞数量超限'
-            message = f'扫描ID {scan_id}: 漏洞总数 {scan_data.get("total_vulnerabilities", 0)} 超过阈值 {rule["vuln_count_threshold"]}'
+            reasons.append(f'漏洞总数 {scan_data.get("total_vulnerabilities", 0)} 超过阈值 {rule["vuln_count_threshold"]}')
 
         if rule['risk_score_threshold'] > 0 and risk_score >= rule['risk_score_threshold']:
             triggered = True
-            title = f'安全告警: {rule["name"]} - 风险评分超标'
-            message = f'扫描ID {scan_id}: 风险评分 {risk_score} 超过阈值 {rule["risk_score_threshold"]}'
+            reasons.append(f'风险评分 {risk_score} 超过阈值 {rule["risk_score_threshold"]}')
 
         if triggered:
+            title = f'安全告警: {rule["name"]} - {max_severity.upper()}'
+            message = f'扫描ID {scan_id}: ' + '；'.join(reasons)
             conn.execute(
                 '''INSERT INTO notifications (type, title, message, scan_id, severity, is_read, created_at)
                    VALUES (?, ?, ?, ?, ?, 0, ?)''',
-                ('alert', title, message, scan_id, max_severity, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                ('alert', title, message, scan_id, max_severity, _now_beijing().strftime('%Y-%m-%d %H:%M:%S'))
             )
             notifications_created += 1
 
