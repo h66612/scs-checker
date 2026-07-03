@@ -630,6 +630,8 @@ function pollScanProgress(taskId) {
                     if (data.scan_id) document.getElementById('btnViewResult').href = '/result/' + data.scan_id;
                     resetScanButton();
                     loadStats();
+                    // Check if alert rules were triggered and show popup
+                    if (data.scan_id) checkScanAlerts(data.scan_id);
                 } else if (data.status === 'error') {
                     clearInterval(interval);
                     showScanError(data.error || '扫描失败');
@@ -690,4 +692,66 @@ function forceCloseModal() {
     document.body.classList.remove('modal-open');
     document.body.style.removeProperty('overflow');
     document.body.style.removeProperty('padding-right');
+}
+
+// === Alert Popup: Check triggered rules after scan completion ===
+function checkScanAlerts(scanId) {
+    fetch('/api/notifications')
+        .then(function (r) { return r.json(); })
+        .then(function (notifications) {
+            var alerts = (notifications || []).filter(function (n) {
+                return n.scan_id === scanId && n.type === 'alert';
+            });
+            if (alerts.length > 0) {
+                showAlertPopup(alerts);
+            }
+        })
+        .catch(function (err) { console.error('[SCS] Alert check error:', err); });
+}
+
+function showAlertPopup(alerts) {
+    var existing = document.getElementById('alertPopup');
+    if (existing) existing.remove();
+
+    var popup = document.createElement('div');
+    popup.id = 'alertPopup';
+    popup.style.cssText = 'position:fixed; top:20px; right:20px; z-index:99999; max-width:420px; min-width:320px; background:#1a1a2e; border:2px solid #ff4444; border-radius:12px; padding:20px; box-shadow:0 8px 32px rgba(255,68,68,0.4); font-family:system-ui,sans-serif; transition:transform 0.3s ease, opacity 0.3s ease;';
+
+    var html = '<div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">';
+    html += '<span style="font-size:24px;">&#9888;</span>';
+    html += '<span style="color:#ff4444; font-size:18px; font-weight:bold; flex:1;">安全告警 - 触发了告警规则</span>';
+    html += '<span style="cursor:pointer; color:#888; font-size:22px; padding:0 4px;" onclick="document.getElementById(\'alertPopup\').remove()">&times;</span>';
+    html += '</div>';
+
+    alerts.forEach(function (alert) {
+        html += '<div style="margin-bottom:10px; padding:10px 12px; background:rgba(255,68,68,0.1); border-radius:8px; border-left:3px solid #ff4444;">';
+        html += '<div style="color:#ff6b6b; font-weight:bold; margin-bottom:4px; font-size:14px;">' + escapeHtml(alert.title) + '</div>';
+        html += '<div style="color:#bbb; font-size:12px;">' + escapeHtml(alert.message) + '</div>';
+        html += '</div>';
+    });
+
+    html += '<div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">';
+    html += '<a href="/alerts" style="display:inline-block; padding:8px 20px; background:#ff4444; color:white; text-decoration:none; border-radius:6px; font-size:14px; font-weight:bold;">&#128279; 前往告警中心</a>';
+    html += '</div>';
+
+    popup.innerHTML = html;
+    document.body.appendChild(popup);
+
+    // Slide-in animation
+    popup.style.transform = 'translateX(420px)';
+    popup.style.opacity = '0';
+    setTimeout(function () {
+        popup.style.transform = 'translateX(0)';
+        popup.style.opacity = '1';
+    }, 50);
+
+    // Auto-remove after 15 seconds
+    setTimeout(function () {
+        var el = document.getElementById('alertPopup');
+        if (el) {
+            el.style.transform = 'translateX(420px)';
+            el.style.opacity = '0';
+            setTimeout(function () { if (el) el.remove(); }, 300);
+        }
+    }, 15000);
 }
