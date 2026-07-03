@@ -181,6 +181,14 @@ def detect_format(filename, content=''):
             except:
                 pass
         # Python formats
+        # Requirements.txt - detect by package==version pattern
+        lines = [l.strip() for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
+        req_eq = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*(\[[\w,-]+\])?\s*==\s*[\d]')
+        req_any = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*(\[[\w,-]+\])?\s*(==|>=|<=|~=|>|<|===)\s*[\d]')
+        eq_count = sum(1 for l in lines if req_eq.match(l))
+        any_count = sum(1 for l in lines if req_any.match(l))
+        if eq_count >= 1 or any_count >= 2:
+            return 'requirements_txt'
         if 'from setuptools import' in content or ('install_requires' in content and 'setup(' in content):
             return 'setup_py'
         if '[packages]' in content or ('[dev-packages]' in content):
