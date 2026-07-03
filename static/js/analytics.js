@@ -371,7 +371,7 @@ function runComplianceCheck() {
 // Render compliance check results
 // Updates HTML elements: compliancePass, complianceWarn, complianceFail, complianceDetailBody
 function renderComplianceResult(data, standard) {
-    var checks = data.checks || data.items || [];
+    var checks = data.checks || data.items || data.details || [];
     var passCount = 0, warnCount = 0, failCount = 0;
     checks.forEach(function (c) {
         var status = (c.status || '').toUpperCase();
@@ -399,10 +399,10 @@ function renderComplianceResult(data, standard) {
                 else if (status === 'FAIL') { badgeClass = 'bg-danger'; badgeColor = '#f85149'; }
                 else { badgeClass = 'bg-secondary'; badgeColor = '#8b949e'; }
 
-                var name = escapeHtml(c.name || c.rule || '-');
-                var requirement = escapeHtml(c.requirement || c.standard_desc || c.description || '-');
-                var actual = escapeHtml(c.actual || c.detail || c.evidence || '-');
-                var explanation = escapeHtml(c.explanation || c.remediation || c.message || '-');
+                var name = escapeHtml(c.check_name || c.name || c.rule || '-');
+                var requirement = escapeHtml(c.description || c.requirement || c.standard_desc || '-');
+                var actual = escapeHtml(c.actual_status || c.actual || c.detail || c.evidence || '-');
+                var explanation = escapeHtml(c.message || c.explanation || c.remediation || '-');
 
                 return '<tr>' +
                     '<td>' + (idx + 1) + '</td>' +
