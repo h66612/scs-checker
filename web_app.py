@@ -1201,38 +1201,10 @@ def login_page():
     return render_template('login.html', mode='login')
 
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register')
 def register_page():
-    """User registration page."""
-    if request.method == 'POST':
-        data = request.get_json(silent=True) or {}
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        email = data.get('email', '').strip()
-
-        if not username or not password:
-            return jsonify({'error': '用户名和密码不能为空'}), 400
-        if len(password) < 6:
-            return jsonify({'error': '密码至少6位'}), 400
-
-        conn = get_db()
-        existing = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
-        if existing:
-            conn.close()
-            return jsonify({'error': '用户名已存在'}), 409
-
-        pw_hash = hash_password(password)
-        conn.execute(
-            '''INSERT INTO users (username, password_hash, email, role, created_at)
-               VALUES (?, ?, ?, 'user', ?)''',
-            (username, pw_hash, email, now_beijing().strftime('%Y-%m-%d %H:%M:%S'))
-        )
-        conn.commit()
-        log_audit(conn, 0, username, 'REGISTER', 'Web Platform', f'新用户注册: {username}')
-        conn.close()
-        return jsonify({'success': True, 'message': '注册成功，请登录'})
-
-    return render_template('login.html', mode='register')
+    """Registration disabled - redirect to login."""
+    return redirect('/login')
 
 
 @app.route('/logout')
