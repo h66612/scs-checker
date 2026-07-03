@@ -95,8 +95,8 @@ function renderTrendStats(data, trends) {
     var riskTrendEl = document.getElementById('trendRiskTrend');
     if (riskTrendEl) {
         if (trends.length >= 2) {
-            var latest = trends[trends.length - 1].risk_score || trends[trends.length - 1].risk || 0;
-            var prev = trends[trends.length - 2].risk_score || trends[trends.length - 2].risk || 0;
+            var latest = trends[trends.length - 1].risk_score ?? trends[trends.length - 1].risk ?? 0;
+            var prev = trends[trends.length - 2].risk_score ?? trends[trends.length - 2].risk ?? 0;
             var diff = latest - prev;
             if (diff > 0) {
                 riskTrendEl.textContent = '+' + diff.toFixed(1);
@@ -159,8 +159,10 @@ function renderTrendLineChart(trends) {
         if (time.length >= 16) return time.substring(5, 16);
         return time || ('#' + (t.scan_id || t.id || ''));
     });
-    var risks = trends.map(function (t) { return t.risk_score || t.risk || 0; });
-    var vulns = trends.map(function (t) { return t.total_vulns || t.vulns || 0; });
+    var risks = trends.map(function (t) { return t.risk_score ?? t.risk ?? 0; });
+    var vulns = trends.map(function (t) { return t.total_vulns ?? t.vulns ?? 0; });
+    var maxVulns = Math.max.apply(null, vulns);
+    if (maxVulns < 10) maxVulns = 10;
 
     trendLineChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
@@ -230,6 +232,7 @@ function renderTrendLineChart(trends) {
                     type: 'linear',
                     position: 'right',
                     min: 0,
+                    max: maxVulns,
                     title: { display: true, text: '漏洞数量', color: '#d29922', font: { size: 12 } },
                     ticks: { color: '#d29922', precision: 0 },
                     grid: { display: false }
@@ -347,8 +350,8 @@ function runComplianceCheck() {
     fetch(url)
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            if (data.error) {
-                showToast('error', '检查失败', data.error);
+            if (!data || data.error) {
+                showToast('error', '检查失败', (data && data.error) ? data.error : '未找到合规标准或检查失败');
                 return;
             }
             renderComplianceResult(data, standard);
@@ -480,12 +483,12 @@ function loadProvenanceData() {
 // Updates HTML elements: provTotalPackages, provDirectDeps, provTransitiveDeps,
 // provVulnPackages, provenanceTreeContainer
 function renderProvenanceResult(data) {
-    // Stat cards (HTML IDs: provTotalPackages, provDirectDeps, provTransitiveDeps, provVulnPackages)
-    var stats = data.stats || data.summary || {};
-    setTextById('provTotalPackages', stats.total_packages || 0);
-    setTextById('provDirectDeps', stats.direct_dependencies || 0);
-    setTextById('provTransitiveDeps', stats.transitive_dependencies || 0);
-    setTextById('provVulnPackages', stats.vulnerable_packages || 0);
+    // Stat cards - API returns flat top-level fields, not nested stats object
+    var d = data || {};
+    setTextById('provTotalPackages', d.total_packages || 0);
+    setTextById('provDirectDeps', d.direct_deps || d.direct_dependencies || 0);
+    setTextById('provTransitiveDeps', d.transitive_deps || d.transitive_dependencies || 0);
+    setTextById('provVulnPackages', (d.vulnerable_direct || 0) + (d.vulnerable_transitive || 0) || d.vulnerable_packages || 0);
 
     // Dependency tree (HTML ID: provenanceTreeContainer)
     var treeEl = document.getElementById('provenanceTreeContainer');
