@@ -303,6 +303,17 @@ def run_scan_task(task_id, file_content, project_name, filename='requirements.tx
         # Run multi-ecosystem vulnerability check
         scan_result = checker.check_multi_ecosystem(all_packages_for_check, project_name=project_name)
 
+        # Annotate packages with is_direct flag for dependency tracing
+        if direct_packages:
+            if isinstance(direct_packages[0], dict):
+                direct_names = {p.get('name', '').lower() for p in direct_packages}
+            else:
+                direct_names = {p.lower() for p in direct_packages}
+        else:
+            direct_names = set()
+        for pkg in scan_result.get('packages', []):
+            pkg['is_direct'] = pkg.get('package', '').lower() in direct_names
+
         progress['progress'] = 80
         progress['message'] = 'Generating reports...'
 
