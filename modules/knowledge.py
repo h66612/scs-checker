@@ -224,6 +224,8 @@ def run_compliance_check(scan_data, standard_name):
             results.append({
                 'check_id': check['id'],
                 'check_name': check['name'],
+                'description': check['description'],
+                'actual_status': f'最高漏洞等级: {max_severity.upper()}',
                 'status': 'FAIL',
                 'message': check['fail_msg'],
                 'severity': threshold,
@@ -233,6 +235,8 @@ def run_compliance_check(scan_data, standard_name):
             results.append({
                 'check_id': check['id'],
                 'check_name': check['name'],
+                'description': check['description'],
+                'actual_status': f'最高漏洞等级: {max_severity.upper()}',
                 'status': 'WARN',
                 'message': f'存在低级别漏洞，建议关注',
                 'severity': threshold,
@@ -242,6 +246,8 @@ def run_compliance_check(scan_data, standard_name):
             results.append({
                 'check_id': check['id'],
                 'check_name': check['name'],
+                'description': check['description'],
+                'actual_status': '未发现漏洞',
                 'status': 'PASS',
                 'message': '未发现相关安全问题',
                 'severity': threshold,
